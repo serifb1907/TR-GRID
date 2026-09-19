@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>TR-GRID MASTER v79.0 | Siber Operasyon ve İnteraktif SCADA Merkezi</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root { 
+      --neon-blue:#00d2ff; 
+      --neon-pink:#f72585; 
+      --neon-yellow:#f9d423; 
+      --neon-green:#10b981; 
+      --neon-purple:#8338ec;
+      --bg:#010409; 
+      --card-bg:rgba(10, 17, 32, 0.95);
+    }
+    html,body{ margin:0; height:100%; overflow:hidden; background:var(--bg); font-family:'Orbitron', sans-serif; color: white; }
+    #map{ width:100vw; height:100vh; z-index:1; filter: brightness(0.5) contrast(1.2); }
+
+    /* CANLI TELEMETRİ KONSOLU */
+    #scadaHUD {
+      position:fixed; top:14px; left:18px; z-index:999;
+      display:flex; gap:16px; align-items:center;
+      background:rgba(2, 6, 23, 0.92); backdrop-filter:blur(14px);
+      padding:10px 18px; border:1px solid rgba(0, 210, 255, 0.35); border-radius:8px;
+      box-shadow:0 0 25px rgba(0, 210, 255, 0.15);
+    }
+    .hud-block { display:flex; flex-direction:column; min-width:115px; }
+    .hud-title { font-family:'JetBrains Mono'; font-size:10px; color:#94a3b8; letter-spacing:1px; font-weight: 600; margin-bottom: 2px; }
+    .hud-val { font-family:'JetBrains Mono'; font-size:16px; font-weight:700; color:var(--neon-blue); }
+    .hud-dot { width:8px; height:8px; border-radius:50%; background:var(--neon-green); box-shadow:0 0 10px var(--neon-green); display:inline-block; margin-right:6px; }
+
+    /* HIZLI ARAMA KUTUSU VE DROPDOWN */
+    #searchBoxWrapper {
+      position: fixed; top: 80px; left: 18px; z-index: 999;
+      display: flex; align-items: center; background: rgba(2, 6, 23, 0.94);
+      border: 1px solid rgba(0, 210, 255, 0.35); border-radius: 6px; padding: 6px 12px;
+      backdrop-filter: blur(12px); box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    }
+    #citySearchInput {
+      background: transparent; border: none; outline: none;
+      color: #fff; font-family: 'JetBrains Mono'; font-size: 11px; width: 160px;
+    }
+    #citySearchInput::placeholder { color: #64748b; }
+    #searchDropdown {
+      display: none; position: absolute; top: 38px; left: 0; width: 100%;
+      max-height: 200px; overflow-y: auto; background: rgba(2, 6, 23, 0.98);
+      border: 1px solid var(--neon-blue); border-radius: 6px; z-index: 9999;
+      box-shadow: 0 0 25px rgba(0, 210, 255, 0.25);
+    }
+    #searchDropdown::-webkit-scrollbar { width: 4px; }
+    #searchDropdown::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 2px; }
+
+
+    /* HARİTA ÜZERİ TARİH SEÇİMİ */
+    #mapDatePicker {
+      position:fixed; top:132px; left:18px; z-index:10000;
+      display:flex; flex-direction:column; gap:5px;
+      background:rgba(2, 6, 23, 0.94);
+      border:1px solid rgba(0, 210, 255, 0.35); border-radius:6px;
+      padding:8px 10px; backdrop-filter:blur(12px);
+      box-shadow:0 0 20px rgba(0,0,0,0.6);
+      font-family:'JetBrains Mono',monospace;
+    }
+    #mapDatePicker label { font-size:9px; color:#94a3b8; letter-spacing:1px; }
+    #mapDateInput {
+      background:#020817; border:1px solid #334155; border-radius:4px;
+      color:#fff; padding:7px 8px; outline:none;
+      font:11px 'JetBrains Mono',monospace;
+      width:150px; box-sizing:border-box;
+    }
+    #mapDateInput:focus { border-color:var(--neon-blue); box-shadow:0 0 8px rgba(0,210,255,.2); }
+    /* Chrome/Edge tarih takvim ikonunu belirgin beyaz göster */
+    #mapDateInput::-webkit-calendar-picker-indicator {
+      filter: invert(1) brightness(1.35);
+      opacity: 1;
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+    }
+    #mapDateStatus {
+      margin-top:7px;
+      padding:7px 9px;
+      min-width:230px;
+      max-width:300px;
+      border:1px solid rgba(0,210,255,.28);
+      border-radius:6px;
+      background:rgba(2,10,20,.88);
+      color:#cbd5e1;
+      font-size:10px;
+      line-height:1.35;
+      letter-spacing:.25px;
+      display:none;
+      box-shadow:0 0 12px rgba(0,0,0,.22);
+    }
+    #mapDateStatus.show { display:block; }
+    #mapDateStatus.loading { color:#67e8f9; border-color:rgba(0,210,255,.55); }
+    #mapDateStatus.success { color:#86efac; border-color:rgba(34,197,94,.5); }
+    #mapDateStatus.error { color:#fca5a5; border-color:rgba(239,68,68,.5); }
+
+
+    /* KAYNAK FİLTRELEME ÇUBUĞU */
+    #sourceFilters {
+      position:fixed; top:14px; right:18px; z-index:999;
+      display:flex; gap:6px; background:rgba(2, 6, 23, 0.92); backdrop-filter:blur(12px);
+      padding:8px; border:1px solid rgba(0, 210, 255, 0.35); border-radius:8px;
+      box-shadow:0 0 25px rgba(0,0,0,0.5);
+    }
+    .filter-btn {
+      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.15);
+      color:#cbd5e1; padding:6px 10px; font-family:'JetBrains Mono'; font-size:11px; font-weight:600;
+      cursor:pointer; transition:0.2s; border-radius:5px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      min-width: 75px;
+    }
+    .filter-btn span.sub-val { font-size: 10px; color: var(--neon-yellow); font-weight: 700; transition: color 0.3s; }
+    .filter-btn:hover, .filter-btn.active {
+      background:var(--neon-blue); color:#000; font-weight:bold; box-shadow:0 0 12px var(--neon-blue);
+    }
+    .filter-btn:hover span.sub-val, .filter-btn.active span.sub-val {
+      color: #000; font-weight: 800;
+    }
+
+    /* HARİTA ÜRETİM SKALASI (LEGEND) */
+    #mapLegend {
+      position:fixed; bottom:20px; left:20px; z-index:999;
+      background:rgba(2, 6, 23, 0.92); backdrop-filter:blur(12px);
+      border:1px solid rgba(0, 210, 255, 0.35); border-radius:8px;
+      padding:12px 16px; font-family:'JetBrains Mono'; box-shadow:0 0 25px rgba(0,0,0,0.7);
+    }
+    .legend-title { font-size:10px; color:var(--neon-blue); margin-bottom:8px; font-weight:bold; letter-spacing:1px; }
+    .legend-item { display:flex; align-items:center; gap:8px; font-size:11px; margin-bottom:5px; color:#e2e8f0; }
+    .legend-circle { width:11px; height:11px; border-radius:50%; display:inline-block; }
+
+    /* ŞEHİR ETİKETLERİ */
+    .city-label {
+      background: rgba(2, 6, 23, 0.85) !important; border: 1px solid rgba(0, 210, 255, 0.4) !important;
+      border-radius: 4px; padding: 2px 6px !important;
+      color: #ffffff !important; font-family: 'JetBrains Mono', monospace !important;
+      font-weight: 700 !important; font-size: 10px !important; pointer-events: none;
+      box-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+
+    /* İLETİM HATTI ANİMASYONU VE POPUP */
+    @keyframes dash-flow {
+      to { stroke-dashoffset: -20; }
+    }
+    .grid-line-anim {
+      stroke-dasharray: 6, 6;
+      animation: dash-flow 1.5s linear infinite;
+      cursor: pointer;
+    }
+    .leaflet-popup-content-wrapper {
+      background: rgba(2, 6, 23, 0.95) !important;
+      border: 1px solid var(--neon-blue) !important;
+      color: #fff !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      border-radius: 6px !important;
+      box-shadow: 0 0 25px rgba(0, 210, 255, 0.3) !important;
+    }
+    .leaflet-popup-tip { background: var(--neon-blue) !important; }
+
+    /* SEÇENEK VE DETAY EKRANLARI */
+    #selectionOverlay {
+      position:fixed; inset:0; display:none; flex-direction:column;
+      align-items:center; justify-content:center; padding:20px;
+      background:rgba(1, 4, 9, 0.96); z-index:999998; color:white; backdrop-filter: blur(15px);
+    }
+    .selection-box {
+      border: 1px solid var(--neon-blue); padding: 25px; background: #0a1120;
+      width: 860px; max-height: 90vh; display: flex; gap: 20px; box-shadow: 0 0 50px rgba(0, 210, 255, 0.2);
+    }
+    .selection-left { flex: 1.25; display: flex; flex-direction: column; text-align: center; }
+    .selection-right { flex: 0.75; display: flex; flex-direction: column; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,210,255,0.1); padding: 15px; border-radius: 6px; min-width: 310px; }
+    
+    .city-summary-card {
+      background: rgba(16, 185, 129, 0.1); border: 1px solid var(--neon-green);
+      padding: 12px; margin-bottom: 12px; text-align: left; display:flex; justify-content:space-between; align-items:center;
+    }
+    .zero-toggle-box { display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono'; font-size:11px; color:#94a3b8; margin-bottom:8px; text-align:left; }
+
+    #plantButtons { flex-grow: 1; overflow-y: auto; padding-right: 5px; max-height: 45vh; text-align: left; }
+    #plantButtons::-webkit-scrollbar { width: 4px; }
+    #plantButtons::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 2px; }
+
+    .plant-btn {
+      display: flex; justify-content:space-between; align-items:center; width: 100%; padding: 10px 12px; margin: 6px 0;
+      background: rgba(255,255,255,0.02); border: 1px solid var(--neon-pink);
+      color: white; font-family: 'JetBrains Mono'; cursor: pointer; transition: 0.2s; font-size: 11px; border-radius:3px;
+    }
+    .plant-btn:hover { background: var(--neon-pink); color: white; transform: translateX(5px); box-shadow:0 0 10px var(--neon-pink); }
+
+    /* 2. ÜNİTE DETAY ANALİZ PANELİ */
+    #simOverlay{
+      position:fixed; inset:0; display:none; flex-direction:column;
+      align-items:center; justify-content:flex-start; padding:25px;
+      background:radial-gradient(circle at center, rgba(1, 10, 25, 0.98) 0%, rgba(1, 4, 9, 1) 100%);
+      z-index:999999; overflow: hidden;
+    }
+
+    #topBar { width:100%; display:flex; justify-content:space-between; margin-bottom: 10px; border-bottom: 1px solid #1e293b; padding-bottom: 10px;}
+    #cityTitle { font-size:30px; letter-spacing:3px; text-transform:uppercase; margin:0; color: var(--neon-blue); text-shadow: 0 0 10px rgba(0, 210, 255, 0.4); }
+    #plantInfo { color:var(--neon-yellow); font-family:'JetBrains Mono'; font-size:13px; }
+
+    #backBtn { border:1px solid var(--neon-pink); background:transparent; color:var(--neon-pink); padding:6px 14px; cursor:pointer; font-family:Orbitron; font-weight:bold; font-size: 11px; }
+    #backBtn:hover { background:var(--neon-pink); color:white; box-shadow: 0 0 15px var(--neon-pink); }
+
+    .main-grid { display: flex; width: 100%; height: calc(100vh - 250px); gap: 20px; margin-top: 10px; }
+    .flow-section { flex: 0.9; display: flex; flex-direction: column; justify-content: space-around; background: rgba(10, 20, 40, 0.2); padding: 15px; border: 1px solid rgba(0,210,255,0.08); backdrop-filter: blur(5px); border-radius: 6px; }
+    
+    .text-chart-card { background: rgba(255, 37, 133, 0.04); border: 1px dashed var(--neon-pink); border-radius: 4px; padding: 10px; text-align: center; margin-bottom: 5px; }
+    .text-chart-title { font-family: 'JetBrains Mono'; font-size: 9px; color: var(--neon-pink); letter-spacing: 1px; margin-bottom: 2px; text-transform: uppercase; }
+    .text-chart-value { font-size: 24px; font-weight: bold; color: white; font-family: 'JetBrains Mono'; text-shadow: 0 0 10px rgba(247,37,133,0.3); }
+
+    .node { text-align: center; }
+    .node i { font-size: 34px; display: block; margin-bottom: 4px; filter: drop-shadow(0 0 8px var(--neon-blue)); }
+    .node-val { font-size: 16px; color: var(--neon-yellow); font-family: 'JetBrains Mono'; font-weight: bold; }
+    .node-label { font-size: 9px; color: var(--neon-blue); text-transform: uppercase; margin-top: 3px; }
+    .connector { height: 20px; width: 2px; background: #1e293b; margin: 0 auto; position: relative; overflow: hidden; }
+    .pulse { position: absolute; width: 100%; height: 30px; background: linear-gradient(180deg, transparent, var(--neon-blue), transparent); top: -30px; }
+
+    .charts-section { flex: 2.1; display: flex; flex-direction: column; background: rgba(5, 12, 28, 0.6); border: 1px solid rgba(0, 210, 255, 0.15); border-radius: 8px; padding: 45px 20px 20px 20px; position: relative; box-shadow: inset 0 0 20px rgba(0, 210, 255, 0.05); }
+    .chart-title { position: absolute; top: 15px; left: 20px; font-size: 11px; color: var(--neon-pink); font-family: 'JetBrains Mono'; letter-spacing: 1px; }
+    
+    .chart-controls { position: absolute; top: 10px; right: 20px; display: flex; gap: 6px; z-index: 10; }
+    .ctrl-btn { background: rgba(0, 210, 255, 0.05); border: 1px solid var(--neon-blue); color: var(--neon-blue); padding: 4px 8px; font-family: 'JetBrains Mono'; font-size: 10px; cursor: pointer; transition: 0.2s; border-radius: 3px; }
+    .ctrl-btn:hover, .ctrl-btn.active { background: var(--neon-blue); color: #000; box-shadow: 0 0 8px var(--neon-blue); }
+
+    #terminal {
+      width: 100%; height: 100px; background: #001226;
+      border-left: 4px solid var(--neon-pink); padding: 12px;
+      font-family: "JetBrains Mono"; color: var(--neon-green); overflow: auto; font-size: 11px; line-height: 1.5; margin-top: 15px;
+    }
+
+    /* KAYNAK İSTİHBARAT BİLGİ KARTI */
+    #resourceInfoModal {
+      position: fixed; bottom: 30px; right: 20px; z-index: 9999;
+      width: 390px; background: rgba(2, 6, 23, 0.96); backdrop-filter: blur(15px);
+      border: 1px solid var(--neon-blue); border-radius: 8px; padding: 16px;
+      box-shadow: 0 0 35px rgba(0, 210, 255, 0.25); display: none; font-family: 'JetBrains Mono';
+    }
+    #resModalTitle { font-size: 13px; font-weight: bold; color: var(--neon-blue); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+    #resModalDesc { font-size: 11px; color: #cbd5e1; line-height: 1.6; margin-bottom: 10px; }
+    #resModalStats { background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 210, 255, 0.15); border-radius: 4px; padding: 8px; font-size: 10px; color: var(--neon-yellow); line-height: 1.5; }
+    .close-modal-btn { background: transparent; border: none; color: var(--neon-pink); font-weight: bold; cursor: pointer; font-size: 14px; }
+  
+/* TR-GRID TEMIZ: bağımsız SVG harita */
+#map { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important;
+       min-height:100vh !important; display:block !important; visibility:visible !important;
+       opacity:1 !important; background:#03080f !important; z-index:1 !important; filter:none !important; }
+#map .city-label { background:rgba(2,6,23,.88); border:1px solid rgba(0,210,255,.45);
+                   border-radius:4px; padding:3px 6px; color:#fff; font:700 10px 'JetBrains Mono',monospace;
+                   box-shadow:0 0 10px rgba(0,0,0,.8); }
+#sourceFilters { top:14px !important; right:18px !important; }
+
+</style>
+</head>
+<body>
+
+<!-- CANLI ŞEBEKE TELEMETRİSİ -->
+<div id="scadaHUD">
+  <div class="hud-block">
+    <div class="hud-title"><span class="hud-dot"></span>ŞEBEKE FREKANSI</div>
+    <div class="hud-val" id="hudFreq">50.00 Hz</div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-title">ULUSAL ANLIK YÜK</div>
+    <div class="hud-val" id="hudNationalLoad">34,180 MW</div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-title">YENİLENEBİLİR PAYI</div>
+    <div class="hud-val" id="hudRenewablePct" style="color:var(--neon-green);">-- %</div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-title">SİSTEM DURUMU</div>
+    <div class="hud-val" style="color:var(--neon-green);">SENKRON / NOMİNAL</div>
+  </div>
+</div>
+
+<!-- HIZLI ARAMA -->
+<div id="searchBoxWrapper">
+  <span style="color:var(--neon-blue); margin-right:8px; font-size:13px;">🔍</span>
+  <input type="text" id="citySearchInput" placeholder="İl Ara (Örn: izmir, afyon)..." oninput="filterSearch(event)" onkeydown="checkSearchEnter(event)">
+  <div id="searchDropdown"></div>
+</div>
+
+<!-- KAYNAK FİLTRELEME ÇUBUĞU (GÜNLÜK TOPLAM) -->
+<div id="sourceFilters">
+  <button class="filter-btn active" onclick="setResourceFilter('ALL')">
+    <span>GÜNLÜK TOPLAM</span>
+    <span class="sub-val" id="tot_ALL">0 MWh</span>
+  </button>
+  <button class="filter-btn" onclick="setResourceFilter('wind')">
+    <span>𖣘 RÜZGAR</span>
+    <span class="sub-val" id="tot_wind">0 MWh</span>
+  </button>
+  <button class="filter-btn" onclick="setResourceFilter('sun')">
+    <span>☀️ GÜNEŞ</span>
+    <span class="sub-val" id="tot_sun">0 MWh</span>
+  </button>
+  <button class="filter-btn" onclick="setResourceFilter('hydro')">
+    <span>🌊 HİDRO</span>
+    <span class="sub-val" id="tot_hydro">0 MWh</span>
+  </button>
+  <button class="filter-btn" onclick="setResourceFilter('thermal')">
+    <span>🏭 TERMİK</span>
+    <span class="sub-val" id="tot_thermal">0 MWh</span>
+  </button>
+  <button class="filter-btn" onclick="setResourceFilter('geothermal')">
+    <span>🌋 JEOTERMAL</span>
+    <span class="sub-val" id="tot_geothermal">0 MWh</span>
+  </button>
+  <button class="filter-btn" onclick="setResourceFilter('biomass')">
+    <span>🌱 BİYOKÜTLE</span>
+    <span class="sub-val" id="tot_biomass">0 MWh</span>
+  </button>
+</div>
+
+<!-- HARİTA RENK SKALASI (LEGEND) -->
+<div id="mapLegend">
+  <div class="legend-title">ÜRETİM KAPASİTE SKALASI</div>
+  <div class="legend-item"><span class="legend-circle" style="background:#10b981; box-shadow:0 0 8px #10b981;"></span> &gt; 5.000 MWh (Mega Arz)</div>
+  <div class="legend-item"><span class="legend-circle" style="background:#00d2ff; box-shadow:0 0 8px #00d2ff;"></span> 1.000 - 5.000 MWh (Yüksek)</div>
+  <div class="legend-item"><span class="legend-circle" style="background:#f9d423; box-shadow:0 0 8px #f9d423;"></span> 100 - 1.000 MWh (Orta)</div>
+  <div class="legend-item"><span class="legend-circle" style="background:#f72585; box-shadow:0 0 8px #f72585;"></span> 1 - 100 MWh (Düşük)</div>
+  <div class="legend-item"><span class="legend-circle" style="background:#475569;"></span> 0.00 MWh (Aktif Değil)</div>
+</div>
+
+<div id="map"></div>
+
+<!-- HARİTA TARİH SEÇİMİ -->
+<div id="mapDatePicker">
+  <label for="mapDateInput">VERİ TARİHİ</label>
+  <input id="mapDateInput" type="date">
+  <div id="mapDateStatus" aria-live="polite"></div>
+</div>
+
+
+<!-- KAYNAK BİLGİLENDİRME MODALI -->
+<div id="resourceInfoModal">
+  <div id="resModalTitle">
+    <span id="resModalName">KAYNAK DETAYI</span>
+    <button class="close-modal-btn" onclick="closeResourceInfo()">✕</button>
+  </div>
+  <div id="resModalDesc">--</div>
+  <div id="resModalStats">--</div>
+</div>
+
+<div id="selectionOverlay">
+  <div class="selection-box">
+    <div class="selection-left">
+        <h2 id="selCityName" style="color:var(--neon-blue); letter-spacing:4px; margin: 0 0 10px 0;">--</h2>
+        <div class="city-summary-card">
+            <div>
+              <div style="font-size:10px; color:var(--neon-green); font-family:'JetBrains Mono'; letter-spacing: 1px;">📊 ENTEGRE GÜNLÜK TOPLAM ÜRETİM</div>
+              <div id="selCityTotal" style="font-size:22px; color:white; font-weight:bold; font-family:'JetBrains Mono';">0.00 MWh</div>
+            </div>
+            <div id="selCityRank" style="font-family:'JetBrains Mono'; font-size:11px; color:#94a3b8;">--</div>
+        </div>
+
+        <div class="zero-toggle-box">
+          <input type="checkbox" id="hideZeros" onchange="renderPlantButtons()">
+          <label for="hideZeros" style="cursor:pointer;">Sadece Aktif Santralleri Göster (0 MWh Gizle)</label>
+        </div>
+
+        <div id="plantButtons"></div>
+        <button onclick="closeSelection()" style="background:transparent; border:none; color:var(--neon-pink); cursor:pointer; margin-top:15px; font-family:Orbitron; font-size:11px;">[ HARİTAYA GERİ DÖN ]</button>
+    </div>
+    <div class="selection-right">
+        <div style="font-size:11px; color:var(--neon-pink); font-family:'JetBrains Mono'; margin-bottom: 12px; text-align: center; border-bottom: 1px solid rgba(247,37,133,0.2); padding-bottom: 5px;">İL GENELİ KAYNAK DAĞILIMI (%)</div>
+        <div style="flex-grow:1; position:relative;"><canvas id="donutChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="simOverlay">
+  <div id="topBar">
+    <div>
+      <div id="cityTitle">--</div>
+      <div id="plantInfo">--</div>
+    </div>
+    <button id="backBtn" onclick="closeSim()">← LİSTEYE DÖN</button>
+  </div>
+
+  <div class="main-grid">
+    <div class="flow-section">
+        <div class="text-chart-card">
+            <div class="text-chart-title">TOTAL SYSTEM INJECTION</div>
+            <div class="text-chart-value" id="textChartTotal">0</div>
+        </div>
+        
+        <div class="node"><i id="sourceIcon">🌊</i><div class="node-val" id="v1">0 MWh</div><div class="node-label">ANLIK ÜRETİM TELEMETRİSİ</div></div>
+        <div class="connector"><div class="pulse"></div></div>
+        <div class="node"><i>⚡</i><div class="node-val" id="vGridTEIAS">380k V</div><div class="node-label">İLETİM (TEİAŞ)</div></div>
+        <div class="connector"><div class="pulse"></div></div>
+        <div class="node"><i>🏗️</i><div class="node-val">34.5k V</div><div class="node-label">DAĞITIM (ŞEBEKE)</div></div>
+        <div class="connector"><div class="pulse"></div></div>
+        <div class="node"><i>🏠</i><div class="node-val">230 V / 50 Hz</div><div class="node-label">TÜKETİM (ABONE)</div></div>
+    </div>
+
+    <div class="charts-section">
+        <div class="chart-title">📈 EPİAŞ TELEMETRİ TREND AKIŞI (CANLI SCADA)</div>
+        
+        <div class="chart-controls">
+            <button class="ctrl-btn active" onclick="updateScadaChart('line', true)">ALAN</button>
+            <button class="ctrl-btn" onclick="updateScadaChart('bar', false, 'x')">SÜTUN</button>
+            <button class="ctrl-btn" onclick="updateScadaChart('bar', false, 'y')">YATAY</button>
+            <button class="ctrl-btn" onclick="resetZoomGraph()">ZOOM SIFIRLA</button>
+        </div>
+        
+        <div style="width:100%; height:100%; position:relative;"><canvas id="areaChart"></canvas></div>
+    </div>
+  </div>
+
+  <div id="terminal"></div>
+</div>
+
+
+<script>
+function cleanVal(v) {
+  if (typeof v === "number") return isNaN(v) ? 0 : v;
+  if (!v) return 0;
+  let str = String(v).replace(/\s/g, "");
+  if (str.includes(",") && str.includes(".")) {
+    str = str.replace(/\./g, "").replace(",", ".");
+  } else if (str.includes(",")) {
+    str = str.replace(",", ".");
+  }
+  let parsed = parseFloat(str);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+// ARCGIS UYDU GÖRÜNTÜSÜ
+const map = L.map('map', { zoomControl:false }).setView([39.1, 35.3], 6);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{ maxZoom:19 }).addTo(map);
+
+const typeCfg = {
+    dammedHydro: { i: "🌊", l: "Barajlı Hidro", color: "#00d2ff", group: "hydro", renewable: true },
+    river: { i: "🌊", l: "Akarsu Hidro", color: "#00d2ff", group: "hydro", renewable: true },
+    sun: { i: "☀️", l: "Güneş Enerjisi", color: "#f9d423", group: "sun", renewable: true },
+    wind: { i: "𖣘", l: "Rüzgar Gücü", color: "#10b981", group: "wind", renewable: true },
+    naturalGas: { i: "🔥", l: "Doğalgaz Çevrim", color: "#f72585", group: "thermal", renewable: false },
+    lignite: { i: "🏭", l: "Linyit Termik", color: "#8338ec", group: "thermal", renewable: false },
+    importCoal: { i: "🏭", l: "İthal Kömür", color: "#8338ec", group: "thermal", renewable: false },
+    geothermal: { i: "🌋", l: "Jeotermal", color: "#ff823a", group: "geothermal", renewable: true },
+    biomass: { i: "🌱", l: "Biyokütle", color: "#aacc00", group: "biomass", renewable: true },
+    coal: { i: "🏭", l: "Taş Kömürü", color: "#8338ec", group: "thermal", renewable: false }
+};
+
+// EPİAŞ / TEİAŞ OPERASYONEL İSTİHBARAT BİLGİLERİ
+const resourceIntel = {
+  ALL: {
+    title: "⚡ ULUSAL ENTERKONNEKTE ŞEBEKE (GÜNLÜK TOPLAM)",
+    desc: "Elektrik enerjisi günümüzde ekonomik kalkınma ve toplumsal gelişim açısından en önemli enerji türlerinden biridir. Artan nüfus, sanayileşme ve teknolojik gelişmeler elektrik enerjisine olan talebi sürekli artırmaktadır. Türkiye’de elektrik enerjisi üretimi farklı enerji kaynaklarından sağlanmaktadır. Bu kaynaklar içerisinde kömür ve gazla çalışan tesislerin yanı sıra su, rüzgâr ile güneşten faydalanan yenilenebilir güç santralleri kritik bir rol oynamaktadır. Türkiye elektrik şebekesi (TEİAŞ), Avrupa ENTSO-E kıta senkron alanına 50.00 Hz nominal frekansta tam entegre çalışmaktadır. Tüm termik, hidroelektrik ve yenilenebilir üretim merkezlerinin gün boyunca şebekeye bastığı 24 saatlik toplam enerjidir.",
+    stats: "Operatör: TEİAŞ Yük Tevzi / EPİAŞ Gün İçi Piyasası<br>Nominal Frekans: 50.00 Hz (Kabul edilebilir bant: 49.8 - 50.2 Hz)<br>Toplam Hat Uzunluğu: 74.000+ km Yüksek Gerilim Ağı"
+  },
+  wind: {
+    title: "𖣘 RÜZGAR ENERJİ SANTRALLERİ (RES)",
+    desc: "Havanın hareketinden doğan kinetik gücü elektrik akımına dönüştüren yapılar, sürdürülebilir rüzgâr santralleri olarak bilinir. Ülkemiz, bulunduğu jeopolitik konum ve meteorolojik şartların getirdiği avantajlar sayesinde yüksek düzeyde rüzgâr gücü kapasitesi barındırmaktadır. Özellikle Ege ve Marmara bölgeleri rüzgar enerjisi üretimi için uygun koşullara sahip bölgeler arasında yer almaktadır. Son yıllarda Türkiye’de rüzgar enerjisi yatırımlarında önemli artışlar yaşanmış ve kurulu güç hızla yükselmiştir. Yenilenebilir enerji kaynaklarına verilen önem doğrultusunda rüzgar enerjisi santralleri elektrik üretiminde giderek daha büyük bir paya sahip olmaktadır. Özellikle Çanakkale Boğazı, Güney Marmara ve Ege kıyılarında yoğunlaşan rüzgar santralleri, yüksek verimli türbinlerle şebekeye dinamik güç aktarır. Meteorolojik tahmin sistemleriyle üretim profili saatlik olarak EPİAŞ Gün Öncesi Piyasası'nda (GÖP) dengelenir.",
+    stats: "Öne Çıkan Merkezler: Çanakkale, Balıkesir, İzmir, Manisa, Hatay<br>Karakteristik: Dinamik, rüzgar hızına göre değişken arz<br>Şebeke Desteği: Primer frekans kontrol algoritmaları entegre"
+  },
+  sun: {
+    title: "☀️ GÜNEŞ ENERJİ SANTRALLERİ (GES)",
+    desc: "Güneşten gelen ışınımı doğrudan elektrik enerjisine çeviren sürdürülebilir sistemler güneş santralleridir. Türkiye, yer aldığı coğrafya itibarıyla güneşlenme verimliliği açısından son derece şanslı bir konumdadır. Yurt genelinde ölçülen senelik ortalama güneş alma süreleri ile radyasyon yoğunluğu seviyeleri oldukça elverişlidir. Bu durum güneş enerjisinden elektrik üretimi için önemli bir potansiyel oluşturmaktadır. Son yıllarda Türkiye’de güneş enerjisi yatırımları hızla artmış ve güneş enerjisi santralleri elektrik üretiminde önemli bir alternatif enerji kaynağı haline gelmiştir. Konya Karapınar ve İç Anadolu platosu başta olmak üzere yüksek radyasyon alanlarında konumlanan fotovoltaik santrallerdir. Gündüz sanayi tüketiminin zirve yaptığı 'gündüz puantını' karşılar; gece saatlerinde üretimi kesin olarak 0 MWh'dir.",
+    stats: "Öne Çıkan Merkezler: Konya (Kalyon Karapınar), Niğde, Gaziantep, Mardin<br>Aktif Saatler: 06:00 - 19:30 (Pik: 12:00 - 14:00)<br>Gece Rejimi: İnaktif / İnverterler bekleme modunda"
+  },
+  hydro: {
+    title: "🌊 HİDROELEKTRİK SANTRALLER (HES)",
+    desc: "Suyun sahip olduğu potansiyel güçten faydalanarak elektrik üreten yapılar hidroelektrik tesisleridir. Söz konusu mekanizmada, baraj gölünde depolanan suyun belirli bir yükseklikten salınmasıyla ortaya çıkan hareket enerjisi türbin kanatlarını çevirerek jeneratör yardımıyla elektrik enerjisi elde edilir. Hidroelektrik enerji, yenilenebilir ve çevre dostu enerji kaynakları arasında yer almakta olup birçok ülkede önemli bir elektrik üretim kaynağı olarak kullanılmaktadır. Fırat-Dicle havzası ve Çoruh Nehri üzerindeki mega barajlar (Yusufeli, Deriner, Keban, Karakaya), Türkiye şebekesinin en stratejik bataryasıdır. Ani frekans düşüşlerinde dakikalar içinde tam yüke çıkarak sistemi çökmekten korur.",
+    stats: "Öne Çıkan Merkezler: Artvin (Çoruh Vadisi), Siirt, Bingöl, Adana, Samsun<br>Operasyon Rolü: Esnek puant yük santrali & Sistem yedek gücü<br>Dönüşüm Süresi: Soğuk rezervden tam kapasiteye < 5 dakika"
+  },
+  thermal: {
+    title: "🏭 TERMİK VE KOMBİNE ÇEVRİM SANTRALLERİ (TES)",
+    desc: "Fosil kaynakların yakılmasıyla açığa çıkan termal enerjiyi elektrik enerjisine çeviren sistemler termik santral olarak adlandırılır. Üretim merkezlerinde hammadde olarak çoğunlukla petrol türevleri, linyit, taş kömürü ve doğal gaz tercih edilmektedir. Türkiye’de elektrik enerjisi üretiminde termik santraller önemli bir paya sahiptir. Özellikle linyit kömürü, ülkedeki termik santrallerde yaygın olarak kullanılan bir enerji kaynağıdır. Ülkemizin fosil kökenli rezervler yönünden kısıtlı imkanlara sahip olması, enerji üretiminde dışa bağımlılık önemli bir sorun oluşturmaktadır. Buna rağmen termik santraller elektrik üretiminde önemli bir rol oynamaya devam etmektedir. Bununla birlikte fosil yakıtların kullanımı çevre kirliliği ve karbon emisyonu gibi olumsuz çevresel etkiler de yaratmaktadır.Meteorolojik şartlara bağlı olmaksızın 7/24 kesintisiz yük üretir.",
+    stats: "Öne Çıkan Merkezler: Çanakkale, Zonguldak, Kocaeli, Tekirdağ, Adana<br>Karakteristik: Yüksek ataletli senkron jeneratörler (Baz Yük)<br>Kapasite Faktörü: %85 - %95 kesintisiz operasyon"
+  },
+  geothermal: {
+    title: "🌋 JEOTERMAL ENERJİ SANTRALLERİ (JES)",
+    desc: "Yer kabuğunun derinliklerinde bulunan sıcak su ve buhar kaynaklarından elde edilen ısı enerjisinin çeşitli yöntemlerle değerlendirilmesine dayanan sistemler jeotermal enerji sistemleridir. Türkiye, jeolojik yapısı ve aktif fay hatlarının yoğunluğu nedeniyle jeotermal kaynaklar bakımından önemli bir potansiyele sahiptir. Özellikle Ege Bölgesi başta olmak üzere ülkenin farklı bölgelerinde yüksek sıcaklığa sahip jeotermal kaynaklara rastlanmaktadır. Bu kaynaklar elektrik üretiminin yanı sıra konut ve sera ısıtması, termal turizm ve çeşitli endüstriyel uygulamalarda da kullanılabilmektedir. Yenilenebilir bir enerji kaynağı olması ve hava koşullarına güneş ve rüzgâr enerjisi kadar bağımlı olmaması, jeotermal enerjiyi sürekli enerji üretimi açısından önemli bir seçenek haline getirmektedir. Büyük Menderes ve Gediz grabenleri boyunca yer alan yüksek entalpili yeraltı jeotermal sahalarında elektrik üretilir. Rüzgar ve güneşin aksine hava koşullarından bağımsız, kesintisiz 7/24 baz yük sağlayan temiz enerji kaynağıdır.",
+    stats: "Öne Çıkan Merkezler: Aydın (Germencik, Buharkent), Denizli (Kızıldere), Manisa<br>Akışkan Sıcaklığı: 180°C - 245°C (Organik Rankine Çevrimi)<br>YEKDEM Rolü: Yüksek yerli katma değerli baz yük arzı"
+  },
+  biomass: {
+    title: "🌱 BİYOKÜTLE VE ATIKTAN ENERJİ SANTRALLERİ (BES)",
+    desc: "Organik kökenli biyokütle kaynaklarının ve çeşitli atıkların enerji üretiminde değerlendirilmesini sağlayan tesisler biyokütle ve atıktan enerji santralleri olarak adlandırılmaktadır. Bu santrallerde tarımsal atıklar, hayvansal atıklar, belediye atıkları ve biyolojik olarak parçalanabilen diğer organik maddeler kullanılarak elektrik ve ısı enerjisi üretilebilmektedir. Türkiye’nin tarım ve hayvancılık faaliyetlerinin yaygın olması, biyokütle kaynaklarının enerji amacıyla değerlendirilmesi açısından önemli bir potansiyel oluşturmaktadır. Atıkların enerjiye dönüştürülmesi sayesinde hem mevcut atık miktarının azaltılması hem de alternatif bir enerji kaynağının elde edilmesi mümkün olmaktadır. Bu yönüyle biyokütle ve atıktan enerji santralleri, enerji üretimine katkı sağlarken atıkların daha verimli şekilde değerlendirilmesine ve sürdürülebilir enerji kullanımının yaygınlaşmasına da yardımcı olmaktadır. Metropol katı atık depolama sahalarından (çöp gazı - LFG), biyogaz reaktörlerinden ve tarımsal atık yakma ünitelerinden oluşur. Sıfır atık hedefine katkı sağlarken dağıtım seviyesinde yerel baz yük oluşturur.",
+    stats: "Öne Çıkan Merkezler: İstanbul (İSTAÇ Seymen/Kömürcüoda), Ankara, Adana, Balıkesir<br>Hammadde: Deponi Gazı (Metan), Biyogaz, Tarımsal Biyokütle<br>Çevresel Etki: Doğrudan sera gazı (CH4) salımını engelleme"
+  }
+};
+
+// KULLANICI VERİLERİ (Birebir Korundu)
+const rawCities = [
+     {n:"ADANA", c:[36.99, 35.32], plants:[{p:"OMP ENERJİ YÜREĞİR BES", k:"biomass", v:175.82}, {p:"SEYHAN 1 HES", k:"river", v:1171.77}, {p:"TUFANBEYLİ TES", k:"coal", v:10848.27}, {p:"ITC ADANA ENERJİ", k:"biomass", v:24.40}, {p:"ITC ADANUS BES", k:"biomass", v:307.58}, {p:"ÇATALAN HES", k:"river", v:2648.41}]},
+    {n:"ADIYAMAN", c:[37.76, 38.27], plants:[{p:"ÇAĞLAYAN HES ADIYAMAN", k:"river", v:14.27}]},
+    {n:"AFYONKARAHİSAR", c:[38.75, 30.53], plants:[{p:"AVDAN BES", k:"biomass", v:43.20}, {p:"BAŞMAKÇI BES", k:"biomass", v:72.80}, {p:"DİNAR HES", k:"river", v:14.33}, {p:"EBER RES", k:"wind", v:274.83}, {p:"AFJET JES", k:"geothermal", v:10.66}, {p:"AFYON BİYOGAZ", k:"biomass", v:51.57}, {p:"AFYON BİYOGAZ BES", k:"biomass", v:50.05}, {p:"AFYON1 BİYOGAZ", k:"biomass", v:53.48}, {p:"HALKALI KAĞIT", k:"naturalGas", v:38.50}, {p:"ÇAY HES", k:"river", v:26.10}]},
+    {n:"AĞRI", c:[39.72, 43.05], plants:[{p:"G3-AĞRI-1-2 GES", k:"sun", v:111.44}, {p:"G3-AĞRI-2-2 GES", k:"sun", v:100.86}]},
+    {n:"AKSARAY", c:[38.36, 34.02], plants:[]},
+    {n:"AMASYA", c:[40.65, 35.83], plants:[{p:"AMASYA BİYOGAZ", k:"biomass", v:22.92}, {p:"AMASYA KALE HES", k:"river", v:289.30}, {p:"AMASYA RES", k:"wind", v:371.47}, {p:"YURTBAY ENERJİ", k:"naturalGas", v:77.90}]},
+    {n:"ANKARA", c:[39.93, 32.85], plants:[{p:"AS KOÇ POLATLI BES", k:"biomass", v:8.36}, {p:"BEYPAZARI BİYOGAZ", k:"biomass", v:1.66}, {p:"ELMADAĞ BES", k:"biomass", v:45.80}, {p:"AKYURT BES", k:"biomass", v:16.63}, {p:"AKYURT RES", k:"wind", v:268.26}, {p:"2BZ ÇUBUK BES", k:"biomass", v:47.03}, {p:"3A AKYURT BES", k:"biomass", v:34.12}, {p:"KESİKKÖPRÜ", k:"dammedHydro", v:396.00}, {p:"ORS POLATLI", k:"naturalGas", v:176.79}, {p:"R3-ANKARA-2-1", k:"wind", v:277.46}, {p:"SARIYAR HES", k:"dammedHydro", v:239.83}, {p:"ÇAYIRHAN TES", k:"coal", v:9812.00}]},
+    {n:"ANTALYA", c:[36.88, 30.70], plants:[{p:"İÇTAŞ ANTALYA HAVALİMANI", k:"naturalGas", v:119.17}, {p:"ALAKIR HES", k:"river", v:0.00}, {p:"ANTALYA DEĞİRMEN HES", k:"river", v:0.00}, {p:"AREL ANTALYA", k:"naturalGas", v:0.0}, {p:"AREL BES", k:"biomass", v:31.74}, {p:"AKSA ANTALYA DGKÇ", k:"naturalGas", v:313.23}, {p:"BUCAKKÖY HES", k:"river", v:0.0}, {p:"DEREKÖY HES ANTALYA", k:"river", v:18.56}, {p:"DİM HES", k:"river", v:193.56}, {p:"ITC ANTALYA BİYOKÜTLE", k:"biomass", v:669.62}, {p:"MANAVGAT HES", k:"river", v:205.00}, {p:"OYMAPINAR HES", k:"dammedHydro", v:2125.00}, {p:"TURUNCOVA FİNİKE HES", k:"river", v:0.00}, {p:"ÇENGER HES", k:"river", v:0.00}]},
+    {n:"ARDAHAN", c:[41.11, 42.70], plants:[]},
+    {n:"ARTVİN", c:[41.18, 41.81], plants:[{p:"ÇOBANLI HES", k:"river", v:39.92}, {p:"ÇİFTEKÖPRÜ HES", k:"river", v:8.86}, {p:"ÇİÇEKLİ 1-2 HES", k:"river", v:34.14}, {p:"ÖZLÜCE ÇORUH HES", k:"river", v:38.70}, {p:"ÜÇGEN HES", k:"river", v:8.15}, {p:"ÜÇGEN2 HES", k:"river", v:14.11}, {p:"ÜÇHARMANLAR HES", k:"river", v:10.69}, {p:"İKRAMİYE HES", k:"river", v:84.00}, {p:"İNCEBEL HES", k:"river", v:8.50}, {p:"İSKALE HES", k:"river", v:37.51}, {p:"ŞAVŞAT HES", k:"river", v:35.41}, {p:"ARKUN HES", k:"river", v:1632.06}, {p:"ARTVİN HES", k:"river", v:5141.78}, {p:"BORÇKA HES", k:"river", v:5964.74}, {p:"DERİNER HES", k:"river", v:13829.36}, {p:"ERİK HES ARTVİN", k:"river", v:13.84}, {p:"MURGUL HES", k:"river", v:21.00}, {p:"MEYDANCIK EKO HES", k:"river", v:5.96}, {p:"NARİNKALE HES", k:"river", v:271.68}, {p:"KOZDERE HES", k:"river", v:32.55}, {p:"KILIÇKAYA HES", k:"dammedHydro", v:1267.20}, {p:"SENA HES", k:"river", v:179.44}, {p:"YUSUFELİ HES", k:"dammedHydro", v:8072.12}, {p:"ÇOBANLI HES", k:"river", v:39.92}, {p:"ÇİFTEKÖPRÜ HES", k:"river", v:8.86}, {p:"ÇİÇEKLİ 1-2 HES", k:"river", v:34.14}, {p:"ÇORUH HES", k:"river", v:38.70}]},
+    {n:"AYDIN", c:[37.84, 27.84], plants:[{p:"ÇAĞLAYANLAR 2 BES", k:"biomass", v:87.88}, {p:"ÇİNE BES", k:"biomass", v:0.00}, {p:"ÇİNE HES", k:"river", v:0.00}, {p:"ÖZMEN-1 GES", k:"sun", v:14.57}, {p:"ÖZMEN-1 JES", k:"geothermal", v:191.03}, {p:"ÖZMEN 3 JES", k:"geothermal", v:158.08}, {p:"İNCİRLİ HES", k:"river", v:107.70}, {p:"ALA2 JES", k:"geothermal", v:510.94}, {p:"AYDIN ÖRME", k:"naturalGas", v:0.00}, {p:"AYDOS RES", k:"wind", v:145.09}, {p:"BAFA RES", k:"wind", v:336.75}, {p:"BAKLACI JES", k:"geothermal", v:224.94}, {p:"BAĞARASI RES", k:"wind", v:181.18}, {p:"BUHARKENT JES", k:"geothermal", v:191.10}, {p:"CUNİŞ HES", k:"river", v:4.16}, {p:"DORA1 JES", k:"geothermal", v:72.25}, {p:"DORA2 JES", k:"geothermal", v:190.10}, {p:"DORA3 JES", k:"geothermal", v:611.55}, {p:"DORA4 JES", k:"geothermal", v:364.86}, {p:"EFE JES", k:"geothermal", v:1832.59}, {p:"EFE6 JES", k:"geothermal", v:581.44}, {p:"EFE7 JES", k:"geothermal", v:592.30}, {p:"EFE8 JES", k:"geothermal", v:1187.43}, {p:"EFELER BES", k:"biomass", v:0.00}, {p:"EFELER BİYOKÜTLE TESİSİ", k:"biomass", v:116.84}, {p:"DİDİM BİYOKÜTLE TESİSİ", k:"biomass", v:5.40}, {p:"GALİP HOCA JES", k:"geothermal", v:626.39}, {p:"FESLEK BEREKET HES", k:"river", v:0.00}, {p:"GÜRES BES", k:"biomass", v:48.06}, {p:"BATI SÖKE", k:"naturalGas", v:50.73}, {p:"IŞIKLAR RES", k:"wind", v:137.42}, {p:"KUYUCAK BES", k:"biomass", v:34.65}, {p:"KUYUCAK JES", k:"geothermal", v:277.33}, {p:"KUYUCAK RES", k:"wind", v:501.00}, {p:"MADRANBABA RES", k:"wind", v:10.77}, {p:"MAREN JES", k:"geothermal", v:588.11}, {p:"MASPO-4 JES", k:"geothermal", v:133.76}, {p:"MORALI JES", k:"geothermal", v:350.77}, {p:"PAMUKÖREN JES", k:"geothermal", v:334.02}, {p:"PAMUKÖREN JES 2", k:"geothermal", v:93.88}, {p:"PAMUKÖREN JES 3", k:"geothermal", v:353.52}, {p:"PAMUKÖREN JES 4", k:"geothermal", v:685.72}, {p:"PAMUKÖREN JES 5", k:"geothermal", v:679.53}, {p:"SULTANHİSAR JES", k:"geothermal", v:204.25}, {p:"SULTANHİSAR-2 JES", k:"geothermal", v:398.08}, {p:"SÖKE RES", k:"wind", v:1068.58}, {p:"UMURLU JES", k:"geothermal", v:139.35}, {p:"UMURLU-2 JES", k:"geothermal", v:177.49}, {p:"ÇAĞLAYANLAR 2 BES", k:"biomass", v:87.88}, {p:"ÇİNE BES", k:"biomass", v:0.00}, {p:"ÇİNE HES", k:"river", v:0.00}, {p:"ÇALKUYUCAK HES", k:"river", v:6.25}]},
+    {n:"BALIKESİR", c:[39.64, 27.88], plants:[{p:"ÖRENLİK RES", k:"wind", v:322.00}, {p:"İPEKTEPE RES", k:"wind", v:324.51}, {p:"ŞADILLI RES", k:"wind", v:323.02}, {p:"ŞAH RES", k:"wind", v:1515.18}, {p:"ŞAMLI RES", k:"wind", v:1504.89}, {p:"ARDIÇLI RES", k:"wind", v:499.07}, {p:"5ER BİYOKÜTLE", k:"biomass", v:48.91}, {p:"AYYILDIZ RES", k:"wind", v:113.71}, {p:"BALABANLI RES", k:"wind", v:948.79}, {p:"BALIKESİR BES", k:"biomass", v:29.23}, {p:"BALIKESİR BES ENERGROM", k:"biomass", v:0.00}, {p:"BALIKESİR RES", k:"wind", v:2058.12}, {p:"BALIKESİR ÇÖP GAZ", k:"biomass", v:154.90}, {p:"BANDIRMA ASİT", k:"naturalGas", v:0.00}, {p:"BANDIRMA BAĞFAŞ", k:"naturalGas", v:47.40}, {p:"BANDIRMA BORAKS", k:"naturalGas", v:312.00}, {p:"BANDIRMA DGKÇ", k:"naturalGas", v:4971.41}, {p:"BANDIRMA RES", k:"wind", v:826.35}, {p:"BANDIRMA-2 DGKÇ", k:"naturalGas", v:3520.47}, {p:"BANDIRMA3 RES", k:"wind", v:592.24}, {p:"EDİNCİK BES", k:"biomass", v:0.46}, {p:"EDİNCİK RES", k:"wind", v:1158.80}, {p:"GÖNEN BİYOGAZ", k:"biomass", v:16.54}, {p:"GÖNEN RES", k:"wind", v:189.50}, {p:"BETA BES", k:"biomass", v:0.00}, {p:"BUPİLİÇ", k:"naturalGas", v:0.00}, {p:"BURAK-1 BES", k:"biomass", v:198.26}, {p:"DEVECİ KONAĞI HES", k:"river", v:21.88}, {p:"DEMİRCİLER RES", k:"wind", v:172.00}, {p:"HAMSİ RES", k:"wind", v:120.16}, {p:"HAMZABEY HES", k:"river", v:0.00}, {p:"HAMZABEYLİ RES", k:"wind", v:140.26}, {p:"HARMANCIK RES", k:"wind", v:734.51}, {p:"BAHÇIVAN GIDA", k:"naturalGas", v:0.00}, {p:"MANYAS HES", k:"river", v:126.50}, {p:"MUTLULAR GÖNEN ENERJİ", k:"biomass", v:65.97}, {p:"KORU RES", k:"wind", v:614.43}, {p:"POYRAZ RES", k:"wind", v:996.80}, {p:"POYRAZGÖLÜ RES", k:"wind", v:571.87}, {p:"POYRAZRES SUSURLUK", k:"wind", v:552.31}, {p:"RB KARESİ", k:"wind", v:122.30}, {p:"SOĞUKPINAR HES", k:"river", v:0.00}, {p:"SOĞUKPINAR HES1", k:"river", v:0.00}, {p:"SOĞUKPINAR HES2", k:"river", v:4.57}, {p:"SOĞUKPINAR HES3", k:"river", v:0.00}, {p:"SOĞUKPINAR HES4", k:"river", v:4.76}, {p:"SUSURLUK RES", k:"wind", v:1166.84}, {p:"SUSURLUK ŞEKER", k:"naturalGas", v:0.00}, {p:"TATLIPINAR RES", k:"wind", v:1952.22}, {p:"ÇAYGÖREN HES", k:"river", v:50.24}, {p:"ŞAPDAĞI RES", k:"wind", v:787.93}]},
+    {n:"BARTIN", c:[41.63, 32.33], plants:[{p:"ASTOSAN BES", k:"biomass", v:0.00}, {p:"BARUTÇUOĞLU BES", k:"biomass", v:22.16}]},
+    {n:"BATMAN", c:[37.88, 41.13], plants:[]},
+    {n:"BAYBURT", c:[40.25, 40.22], plants:[{p:"R3 BAYBURT-5", k:"wind", v:6.39}]},
+    {n:"BİLECİK", c:[40.14, 29.98], plants:[{p:"ATAKÖY HES", k:"river", v:63.60}, {p:"BOZÜYÜK HES", k:"river", v:0.00}, {p:"BOZÜYÜK RES", k:"wind", v:259.19}, {p:"GÖK HES BİLECİK", k:"river", v:48.69}, {p:"R3-BİLECİK-6 RES", k:"wind", v:369.00}]},
+    {n:"BİNGÖL", c:[38.88, 40.49], plants:[{p:"ÇELTİKDERE HES", k:"river", v:0.00}, {p:"AŞAĞI KALEKÖY HES", k:"dammedHydro", v:3487.85}, {p:"BİNGÖL BES", k:"biomass", v:106.46}, {p:"ITC BİNGÖL BES", k:"biomass", v:17.64}, {p:"KİĞI HES", k:"dammedHydro", v:2174.85}, {p:"ÇELTİKDERE HES", k:"river", v:0.00}, {p:"YUKARI KALEKÖY HES", k:"dammedHydro", v:3931.54}]},
+    {n:"BİTLİS", c:[38.40, 42.10], plants:[{p:"ETAB ENERJİ BİTLİS BES", k:"biomass", v:19.09}]},
+    {n:"BOLU", c:[40.73, 31.60], plants:[{p:"GÖKSU HES BOLU", k:"river", v:31.40}, {p:"BEYKÖY HES", k:"river", v:99.76}, {p:"BEYPİ", k:"naturalGas", v:259.80}, {p:"BEYPİ BES", k:"biomass", v:19.05}, {p:"BOLU GÜÇ BİRLİĞİ BES", k:"biomass", v:0.00}, {p:"BOLU KATI ATIK BES", k:"biomass", v:28.83}, {p:"BOLU YEM", k:"naturalGas", v:57.00}, {p:"BOLU ÇİMENTO (ATIK ISI)", k:"naturalGas", v:0.00}, {p:"KÖPRÜBAŞI HES (BOLU)", k:"river", v:448.12}, {p:"MUDURNU BES", k:"biomass", v:57.60}]},
+    {n:"BURDUR", c:[37.71, 30.28], plants:[{p:"ASYA BES", k:"biomass", v:82.86}, {p:"BURDUR ŞEKER", k:"naturalGas", v:0.00}, {p:"METGES BURDUR", k:"sun", v:52.62}]},
+    {n:"BURSA", c:[40.18, 29.06], plants:[{p:"ÖZDİLEK HOTEL", k:"naturalGas", v:0.00}, {p:"İNEGÖL BES", k:"biomass", v:92.30}, {p:"İNEGÖL OSB", k:"naturalGas", v:0.00}, {p:"İNEGÖL ÇÖP GAZ", k:"biomass", v:48.28}, {p:"İSKO İNEGÖL OSB", k:"naturalGas", v:0.48}, {p:"BURSA DGKÇ", k:"naturalGas", v:8608.42}, {p:"BURSA ÇİMENTO WHR", k:"naturalGas", v:0.00}, {p:"CERRAH HES", k:"river", v:0.00}, {p:"DEĞİRMENÜSTÜ HES", k:"river", v:0.00}, {p:"OYLAT HES", k:"river", v:3.60}, {p:"OYLUM3 HES", k:"river", v:17.08}, {p:"ULUABAT HES", k:"river", v:241.44}, {p:"BURSA ÇİMENTO", k:"naturalGas", v:0.00}, {p:"İSKO İNEGÖL OSB", k:"naturalGas", v:0.48}]},
+    {n:"ÇANAKKALE", c:[40.15, 26.41], plants:[{p:"İNTEPE RES", k:"wind", v:216.31}, {p:"İÇDAŞ ÇELİK ENERJİ", k:"naturalGas", v:8751.74}, {p:"AS KOÇ KARABİGA BES", k:"biomass", v:46.47}, {p:"BEKİRLİ TES", k:"importCoal", v:26472.00}, {p:"Biga RES", k:"wind", v:125.57}, {p:"BİGAN ENERJİ BİGA BES", k:"biomass", v:0.00}, {p:"CENAL TES", k:"importCoal", v:31015.65}, {p:"ENERJİSA ÇANAKKALE RES", k:"wind", v:103.56}, {p:"GELİBOLU RES", k:"wind", v:74.63}, {p:"GELİBOLU RES AYVACIK", k:"wind", v:135.74}, {p:"LALE HES", k:"river", v:3.85}, {p:"KORUDAĞI RES", k:"wind", v:14.55}, {p:"SAROS RES", k:"wind", v:1029.19}, {p:"YENİ ELMALI RES", k:"wind", v:3.35}, {p:"ÇAN TES", k:"coal", v:6297.00}, {p:"ÇAN-2 TES", k:"coal", v:6887.00}, {p:"ÇANAKKALE BES", k:"biomass", v:30.16}, {p:"İDA JES", k:"geothermal", v:107.24}]},
+    {n:"ÇANKIRI", c:[40.60, 33.61], plants:[{p:"ÇERKEŞ BİYOGAZ", k:"biomass", v:29.19}, {p:"ÇERKEŞ RES", k:"wind", v:547.92}, {p:"KUZEY 1-2 HES", k:"river", v:2.66}, {p:"SAMATLAR HES", k:"river", v:15.68}, {p:"ÇANKIRI BES", k:"biomass", v:0.00}]},
+    {n:"ÇORUM", c:[40.54, 34.95], plants:[{p:"ÇORUM BES", k:"biomass", v:69.62}, {p:"ÇORUM MECİTÖZÜ BES", k:"biomass", v:0.00}, {p:"ÇORUM ŞEKER", k:"naturalGas", v:0.00}, {p:"AREL ENERJİ ÇORUM BES", k:"biomass", v:33.74}, {p:"DELİCE-1 HES", k:"river", v:0.00}, {p:"R3-ÇORUM-1 RES", k:"wind", v:278.68}, {p:"SÖLPEREN HES", k:"river", v:29.06}]},
+    {n:"DENİZLİ", c:[37.77, 29.08], plants:[{p:"AİRRES-4", k:"wind", v:206.95}, {p:"BEREKET JES", k:"geothermal", v:0.00}, {p:"BEREKET1-2 HES", k:"river", v:7.66}, {p:"CİNDERE HES", k:"river", v:0.00}, {p:"DARIVEREN HES", k:"river", v:0.00}, {p:"DENİZ JES", k:"geothermal", v:342.59}, {p:"DENİZLİ BES", k:"biomass", v:258.00}, {p:"DENİZLİ ENERJİ BİYOGAZ", k:"biomass", v:32.26}, {p:"DENİZLİ RES", k:"wind", v:51.31}, {p:"DENİZLİ TAVAS GES", k:"sun", v:23.29}, {p:"DERYA2 HES", k:"river", v:0.00}, {p:"DEĞİRMENDERE HES", k:"river", v:1.86}, {p:"EMİR JES", k:"geothermal", v:709.00}, {p:"GREENECO 3 JES", k:"geothermal", v:341.45}, {p:"GREENECO JES", k:"geothermal", v:358.15}, {p:"KIZILDERE1 JES", k:"geothermal", v:0.72}, {p:"KIZILDERE2 JES", k:"geothermal", v:1016.51}, {p:"KIZILDERE3 JES", k:"geothermal", v:2946.77}, {p:"RWE DENİZLİ DGKÇ", k:"naturalGas", v:10158.64}, {p:"TOCAK I HES", k:"river", v:9.46}]},
+    {n:"DİYARBAKIR", c:[37.91, 40.23], plants:[{p:"KRALKIZI HES", k:"dammedHydro", v:732.26}, {p:"KİTİ HES", k:"river", v:48.14}, {p:"VEGA DİYARBAKIR BES", k:"biomass", v:130.59}, {p:"ÇAĞLAYAN HES DİYARBAKIR", k:"river", v:16.00}]},
+    {n:"DÜZCE", c:[40.84, 31.15], plants:[{p:"ÖZMAYA", k:"naturalGas", v:109.50}, {p:"DÜZCE AKSU HES", k:"river", v:0.00}, {p:"DÜZCE BES", k:"biomass", v:0.00}, {p:"DÜZCE BES (MERKEZ)", k:"biomass", v:0.00}, {p:"DÜZCE KATI ATIK BES", k:"biomass", v:16.11}, {p:"PAK GIDA CUMAYERİ", k:"naturalGas", v:132.65}]},
+    {n:"EDİRNE", c:[41.67, 26.56], plants:[{p:"KEŞAN BİYOKÜTLE", k:"biomass", v:11.83}, {p:"SÜLOĞLU RES", k:"wind", v:459.68}]},
+    {n:"ELAZIĞ", c:[38.68, 39.22], plants:[{p:"R3-ELAZIĞ-1", k:"wind", v:122.39}]},
+    {n:"ERZİNCAN", c:[39.74, 39.49], plants:[{p:"ÇERMİKLER HES", k:"river", v:91.15}, {p:"ÜZÜMLÜ HES", k:"river", v:36.00}, {p:"ÜZÜMLÜ İÇMESUYU HES", k:"river", v:19.77}, {p:"ÜÇKAYA HES", k:"river", v:0.00}, {p:"ŞİFRİN HES", k:"river", v:4.03}, {p:"BAĞIŞLI HES", k:"river", v:144.09}, {p:"BAĞIŞTAŞ1 HES", k:"river", v:982.94}, {p:"BAĞIŞTAŞ2 HES", k:"river", v:268.75}, {p:"BAYRAMLI HES", k:"river", v:0.00}, {p:"ERA ERZİNCAN 2 BES", k:"biomass", v:0.00}, {p:"ERZİNCAN ŞEKER", k:"naturalGas", v:0.00}, {p:"GİRLEVİK1 HES", k:"river", v:60.00}, {p:"GİRLEVİK2 HES", k:"river", v:39.75}, {p:"GİRLEVİK3 HES", k:"river", v:8.85}, {p:"KADAHOR HES", k:"river", v:0.00}, {p:"MERCAN HES", k:"river", v:278.09}, {p:"SABUNSUYU 2 HES", k:"river", v:11.64}, {p:"KOZBÜKÜ HES", k:"river", v:438.16}, {p:"TERCAN HES", k:"river", v:186.94}, {p:"YILDIRIM HES", k:"river", v:42.27}]},
+    {n:"ERZURUM", c:[39.90, 41.27], plants:[{p:"ÇİĞDEM HES", k:"river", v:3.65}, {p:"ÇİĞDEMLİ HES", k:"river", v:18.66}, {p:"ÖZLÜCE HES", k:"river", v:1737.63}, {p:"AŞKALE ÇİMENTO", k:"naturalGas", v:0.00}, {p:"BBRC ERZURUM ENERJİ BES", k:"biomass", v:0.00}, {p:"BALKODU1 HES", k:"river", v:4.44}, {p:"BALKODU2 HES", k:"river", v:8.18}, {p:"BAĞCI BALIK HES", k:"river", v:0.00}, {p:"BİENTAŞ ERZ.ELK.ÜRETİM TESİSİ", k:"biomass", v:19.21}, {p:"DUMLU HES", k:"river", v:0.00}, {p:"ERZ. ERA BİYOKÜTLE (PROKOM)", k:"biomass", v:0.00}, {p:"ERZURUM AKSU HES", k:"river", v:73.79}, {p:"ERZURUM ŞEKER", k:"naturalGas", v:0.00}, {p:"DEMİR HES", k:"river", v:4.80}, {p:"HALK ENERJİ ERZURUM GES", k:"sun", v:24.90}, {p:"KUZGUN HES", k:"river", v:217.00}, {p:"KUZKAYA HES", k:"river", v:0.00}, {p:"SIRAKONAKLAR HES", k:"river", v:32.27}, {p:"SERHAT HES", k:"river", v:0.00}, {p:"TORTUM HES", k:"river", v:348.76}]},
+    {n:"ESKİŞEHİR", c:[39.77, 30.52], plants:[{p:"ARÇELİK ESKİŞEHİR", k:"naturalGas", v:0.00}, {p:"BEYLİKOVA BES", k:"biomass", v:52.49}, {p:"ESKİŞEHİR BES", k:"biomass", v:48.00}, {p:"ESKİŞEHİR ŞEKER", k:"naturalGas", v:0.00}, {p:"FULL FORCE YENİCE BES", k:"biomass", v:112.81}, {p:"MAHMUDİYE BES", k:"biomass", v:0.00}]},
+    {n:"GAZİANTEP", c:[37.06, 37.38], plants:[{p:"ÖZGÜÇLÜ GES", k:"sun", v:74.30}, {p:"ÖZMEN-1 GES", k:"sun", v:14.57}, {p:"CLS NİZİP BES", k:"biomass", v:7.79}, {p:"G3-GAZİANTEP-1-1 GES", k:"sun", v:173.18}, {p:"G3-GAZİANTEP-2-1 GES", k:"sun", v:170.90}, {p:"G3-GAZİANTEP-3-1 GES", k:"sun", v:84.16}, {p:"GAOSB ÜRETİM 1", k:"naturalGas", v:0.00}, {p:"GAZİANTEP BAĞBAŞI BES", k:"biomass", v:50.06}, {p:"GAZİANTEP HASTANESİ", k:"naturalGas", v:0.00}, {p:"OĞUZELİ BES", k:"biomass", v:8.05}, {p:"OBA MAKARNACILIK", k:"naturalGas", v:0.00}, {p:"YAMAÇTEPE RES", k:"wind", v:89.31}, {p:"NİZİP BES", k:"biomass", v:45.20}]},
+    {n:"GİRESUN", c:[40.91, 38.38], plants:[{p:"ÇORAKLI HES", k:"river", v:16.14}, {p:"ÇİLEKLİTEPE HES", k:"river", v:8.62}, {p:"ÖZGÜVEN HES", k:"river", v:2.67}, {p:"İKİLER HES", k:"river", v:0.00}, {p:"ASLANCIK HES", k:"river", v:528.20}, {p:"BEKTEMUR HES", k:"river", v:45.96}, {p:"CEVHER1-2 HES", k:"river", v:19.51}, {p:"DERELİ HES", k:"river", v:35.89}, {p:"DOĞANKENT HES", k:"river", v:740.99}, {p:"GİRESUN AKSU HES", k:"river", v:1.00}, {p:"GİRESUN KÖPRÜBAŞI HES", k:"river", v:0.30}, {p:"GİRESUN ÇÖP GAZ", k:"biomass", v:19.00}, {p:"GÜCE HES", k:"river", v:41.84}, {p:"KOVANLIK HES", k:"river", v:61.09}, {p:"KÜRTÜN HES", k:"river", v:195.21}, {p:"ÇANAKÇI HES", k:"river", v:39.66}]},
+    {n:"GÜMÜŞHANE", c:[40.46, 39.47], plants:[{p:"CEVİZLİDERE HES", k:"river", v:0.00}, {p:"KOZBÜKÜ HES", k:"river", v:466.36}, {p:"KÜREKDAĞI RES", k:"wind", v:698.59}]},
+    {n:"HAKKARİ", c:[37.57, 43.73], plants:[{p:"ASLANDAĞI HES", k:"river", v:28.45}, {p:"BALKAYA HES", k:"river", v:0.87}, {p:"BALIKÇI HES", k:"river", v:0.00}, {p:"OTLUCA HES HAKKARİ", k:"river", v:4.87}, {p:"KIRIKDAĞ HES", k:"river", v:70.74}]},
+    {n:"HATAY", c:[36.20, 36.16], plants:[{p:"İSDEMİR", k:"naturalGas", v:2364.00}, {p:"İSKENDERUN BİYOKÜTLE", k:"biomass", v:88.91}, {p:"ŞENBÜK RES", k:"wind", v:448.97}, {p:"BELEN RES", k:"wind", v:397.72}, {p:"BÜYÜK KARAÇAY HES", k:"river", v:69.56}, {p:"ERZİN DGKÇ", k:"naturalGas", v:28.45}, {p:"ERZİN DGKÇ", k:"sun", v:44.88}, {p:"G4 ERZİN 2 GES", k:"sun", v:798.64}, {p:"DEFNE HES", k:"river", v:0.00}, {p:"ATAKAŞ DG(MMK METALURJİ)", k:"naturalGas", v:0.00}, {p:"ATLAS TES", k:"importCoal", v:27741.28}, {p:"MMK METALURJİ", k:"naturalGas", v:0.00}, {p:"KORUMA KLOR HATAY", k:"naturalGas", v:78.90}, {p:"KUZUCULU HES", k:"river", v:0.00}, {p:"SOFULAR HES", k:"river", v:29.15}, {p:"SEBENOBA RES", k:"wind", v:179.81}, {p:"YENİ ŞENBÜK RES", k:"wind", v:485.40}]},
+    {n:"IĞDIR", c:[39.91, 44.04], plants:[{p:"ARALIK HES", k:"river", v:44.93}, {p:"IĞDIR BİYOKÜTLE TESİSİ", k:"biomass", v:0.00}]},
+    {n:"ISPARTA", c:[37.76, 30.55], plants:[{p:"ÜÇHANLAR HES", k:"river", v:16.17}, {p:"AREL ISPARTA BES", k:"biomass", v:30.07}, {p:"GÖLTAŞ ATIK ISI SANTRALİ", k:"naturalGas", v:203.55}, {p:"KOVADA1 HES", k:"river", v:0.00}, {p:"KOVADA2 HES", k:"river", v:0.00}, {p:"SÜTÇÜLER HES", k:"river", v:4.27}, {p:"ULUBORLU RES", k:"wind", v:534.02}]},
+    {n:"İSTANBUL", c:[41.01, 28.97], plants:[{p:"ÇIRAĞAN SARAYI", k:"naturalGas", v:0.00}, {p:"ÖMERLİ RES", k:"wind", v:12.87}, {p:"İBB BİYOMETANİZASYON", k:"biomass", v:1224.87}, {p:"İSG SABİHA GÖKÇEN", k:"naturalGas", v:107.20}, {p:"İSTANBUL DGKÇ (A)", k:"naturalGas", v:0.00}, {p:"İSTANBUL END. ATIK", k:"biomass", v:38.20}, {p:"İSTANBUL F.OİL DGKÇ (B)", k:"naturalGas", v:6392.00}, {p:"İSTANBUL RES", k:"wind", v:1727.31}, {p:"İSTAÇ BES", k:"biomass", v:1757.13}, {p:"ŞIK MAKAS GİYİM", k:"naturalGas", v:0.00}, {p:"ŞİLE RES", k:"wind", v:495.58},  {p:"AVCIKORU BES", k:"biomass", v:915.13}, {p:"EFES OTEL", k:"naturalGas", v:19.20}, {p:"EMSEY SAĞLIK", k:"naturalGas", v:21.60}, {p:"FOUR SEASONS OTEL", k:"naturalGas", v:0.00}, {p:"FULYA KOJEN", k:"naturalGas", v:11.52}, {p:"HAMBURGER TURKEY", k:"naturalGas", v:115.60}, {p:"KÖMÜRCÜODA BES", k:"biomass", v:0.00}, {p:"MASLAK ACIBADEM", k:"naturalGas", v:31.20}, {p:"ODAYERİ BES", k:"biomass", v:0.00}, {p:"RENAISSANCE ISTANBUL", k:"naturalGas", v:0.00}, {p:"SİLİVRİ RES", k:"wind", v:1538.80}, {p:"TARABYA OTELİ", k:"naturalGas", v:0.00}, {p:"ÇATALTEPE RES İSTANBUL", k:"wind", v:129.91}, {p:"ÇANTA RES", k:"wind", v:625.30}]},
+    {n:"İZMİR", c:[38.42, 27.14], plants:[{p:"ÇEŞME RES", k:"wind", v:111.78}, {p:"ÖDEMİŞ BES", k:"biomass", v:52.38}, {p:"ÖDEMİŞ RES", k:"wind", v:71.16}, {p:"ÖZBEK RES", k:"wind", v:369.10}, {p:"İZDEMİR TES", k:"importCoal", v:8436.00}, {p:"İZMİR DGKÇ", k:"naturalGas", v:0.00}, {p:"İZMİR MOPAK", k:"naturalGas", v:0.00}, {p:"İZMİR ÇÖP GAZ", k:"biomass", v:179.10}, {p:"ALİAĞA BERGAMA RES", k:"wind", v:2001.76}, {p:"ALİAĞA RES", k:"wind", v:175.27}, {p:"ALİAĞA-1 GES", k:"sun", v:131.78}, {p:"ALAÇATI RES", k:"wind", v:103.12}, {p:"ALKİM İZMİR", k:"naturalGas", v:119.82}, {p:"AYVALIK-1 RES", k:"wind", v:130.32}, {p:"BERGAMA VENTO RES", k:"wind", v:470.93}, {p:"BERGAMA ÇÖP GAZ", k:"biomass", v:144.08}, {p:"BERGRES RES", k:"wind", v:816.60}, {p:"BATIÇİM ENERJİ", k:"naturalGas", v:136.68}, {p:"BOZYAKA RES", k:"wind", v:135.09}, {p:"DEMİRCİLİ RES", k:"wind", v:421.35}, {p:"DİKİLİ RES", k:"wind", v:0.00}, {p:"EGE RES", k:"wind", v:155.37}, {p:"EKOTEN TEKSTİL", k:"naturalGas", v:0.00}, {p:"FOÇA BES", k:"biomass", v:0.00}, {p:"HABAŞ DGKÇ", k:"naturalGas", v:0.00}, {p:"HABAŞ-2 DGKÇ", k:"naturalGas", v:0.00}, {p:"GERMİYAN RES", k:"wind", v:98.02}, {p:"JTI TÜTÜN", k:"naturalGas", v:157.80}, {p:"HALİLBEYLİ BES", k:"biomass", v:85.98}, {p:"KOZBEYLİ RES", k:"wind", v:233.65}, {p:"KINIK BES", k:"biomass", v:0.00}, {p:"KINIK RES", k:"wind", v:732.21}, {p:"KOCALAR RES", k:"wind", v:834.78}, {p:"PAK GIDA KEMALPAŞA", k:"naturalGas", v:112.44}, {p:"RSC-1 SEFERİHİSAR JES", k:"geothermal", v:110.88}, {p:"OVACIK RES İZMİR", k:"wind", v:617.78}, {p:"LEZİTA", k:"naturalGas", v:0.00}, {p:"KOZAK HES", k:"river", v:0.00}, {p:"SAMURLU RES", k:"wind", v:258.15}, {p:"SARPINCIK RES", k:"wind", v:273.10}, {p:"SEFERİHİSAR EKSİM RES", k:"wind", v:175.29}, {p:"SEFERİHİSAR ÜÇGEN RES", k:"wind", v:223.67}, {p:"TİRE BES", k:"biomass", v:0.00}, {p:"TİRE BES ENFAŞ", k:"biomass", v:71.71}, {p:"TİRE KUTSAN", k:"naturalGas", v:125.00}, {p:"TİRE RES", k:"wind", v:148.54}, {p:"TÜPRAŞ İZMİR", k:"naturalGas", v:1058.80}, {p:"YAHŞELLİ RES", k:"wind", v:162.16}, {p:"YUNTDAĞI RES", k:"wind", v:1071.49}, {p:"ZEYTİNELİ RES", k:"wind", v:506.12}, {p:"ÇANDARLI RES", k:"wind", v:712.62}, {p:"ÇANDIR RES", k:"wind", v:129.70}, {p:"ÜÇPINAR RES", k:"wind", v:1412.13}]},
+    {n:"KAHRAMANMARAŞ", c:[37.57, 36.92], plants:[{p:"ÇINAR1 HES", k:"river", v:3.68}, {p:"ÇÖKEK HES", k:"river", v:0.00}, {p:"İSKUR TEKSTİL", k:"naturalGas", v:0.00}, {p:"ANDIRIN HES", k:"river", v:0.00}, {p:"ARIKAN MENSUCAT", k:"naturalGas", v:33.58}, {p:"ARSAN DOKUMA", k:"naturalGas", v:0.00}, {p:"BALLI HES", k:"river", v:24.86}, {p:"EKİNÖZÜ HES", k:"river", v:0.00}, {p:"FIRNIS HES", k:"river", v:6.00}, {p:"BURÇAK 1 HES", k:"river", v:0.00}, {p:"BURÇAK 2 HES", k:"river", v:0.00}, {p:"DORUK HES", k:"river", v:0.00}, {p:"MARAŞ BES", k:"biomass", v:56.56}, {p:"MARTEKS MARAŞ TEKSTİL", k:"naturalGas", v:0.00}, {p:"MELİKE TEKSTİL", k:"naturalGas", v:0.00}, {p:"MELİKE İPLİK", k:"naturalGas", v:0.00}, {p:"MEM TEKSTİL", k:"naturalGas", v:0.00}, {p:"MENSA", k:"naturalGas", v:0.00}, {p:"KÇS ÇİMENTO", k:"naturalGas", v:158.85}, {p:"KÜÇÜKER TERMİK", k:"coal", v:0.00}, {p:"KÜÇÜKÇALIK TEKSTİL", k:"naturalGas", v:28.10}, {p:"KİPAŞ KAĞIT", k:"naturalGas", v:0.00}, {p:"KİPAŞ KAĞIT BES", k:"biomass", v:0.00}, {p:"KİPAŞ MENSUCAT", k:"naturalGas", v:0.00}, {p:"SARIGÜZEL HES", k:"river", v:1370.56}, {p:"SUÇATI HES KAHRAMANMARAŞ", k:"river", v:22.26}, {p:"TÜRKOĞLU KOJEN", k:"naturalGas", v:0.00}]},
+    {n:"KARABÜK", c:[41.20, 32.62], plants:[]},
+    {n:"KARAMAN", c:[37.18, 33.22], plants:[{p:"ÜNSPED KARAMAN BES", k:"biomass", v:18.57}, {p:"BALKUSAN HES", k:"river", v:766.50}, {p:"BUCAKKIŞLA HES", k:"river", v:281.60}, {p:"BİFA BİSKÜVİ", k:"naturalGas", v:14.56}, {p:"ERMENEK HES", k:"river", v:0.00}, {p:"ERMENEK HES EUAŞ", k:"river", v:4858.29}, {p:"DAĞPAZARI RES", k:"wind", v:279.11}, {p:"R3-KARAMAN-1 RES", k:"wind", v:391.26}]},
+    {n:"KARS", c:[40.60, 43.09], plants:[]},
+    {n:"KASTAMONU", c:[41.37, 33.77], plants:[{p:"ARAÇ HES", k:"river", v:42.71}, {p:"DAĞDELEN HES", k:"river", v:70.40}]},
+    {n:"KAYSERİ", c:[38.72, 35.48], plants:[{p:"ÇERÇİKAYA RES", k:"wind", v:956.00}, {p:"İNCESU HES", k:"river", v:345.63}, {p:"İNCESU RES", k:"wind", v:95.17}, {p:"İPEK KAYSERİ", k:"naturalGas", v:0.00}, {p:"BAYRAMHACILI HES", k:"river", v:739.56}, {p:"BÜNYAN", k:"river", v:0.56}, {p:"DURUCASU HES", k:"river", v:4.34}, {p:"ERCİYES RES", k:"wind", v:568.18}, {p:"BAHÇELİK HES", k:"river", v:70.70}, {p:"BESLER ENERJİ", k:"naturalGas", v:139.00}, {p:"CINGILLI GES", k:"sun", v:201.78}, {p:"BOYTEKS TEKSTİL", k:"naturalGas", v:56.10}, {p:"MOLU HES", k:"river", v:22.32}, {p:"OVACIK RES KAYSERİ", k:"wind", v:94.55}, {p:"YAHYALI RES", k:"wind", v:513.63}, {p:"YAHYALI BAK RES", k:"wind", v:1286.07}, {p:"YAMULA HES", k:"river", v:2125.00}]},
+    {n:"KİLİS", c:[36.71, 37.11], plants:[]},
+    {n:"KIRKLARELİ", c:[41.73, 27.22], plants:[{p:"ASLAN ÇİMENTO", k:"naturalGas", v:161.06}, {p:"BABİL BES", k:"biomass", v:60.00}, {p:"BURGAZ RES", k:"wind", v:155.25}, {p:"CAMİŞ TRAKYA", k:"naturalGas", v:0.00}, {p:"ENKA KIRKLARELİ DGKÇS", k:"naturalGas", v:5708.34}, {p:"HAMİTABAT DGKÇ", k:"naturalGas", v:4009.84}, {p:"KIYIKÖY RES (KIRKLARELİ)", k:"wind", v:733.80}, {p:"VİZE 2 RES", k:"wind", v:1426.72}, {p:"VESMEC KIRK-KAB 1 BİYOGAZ", k:"biomass", v:26.26}]},
+    {n:"KIRIKKALE", c:[39.84, 33.51], plants:[{p:"HAMZALI HES", k:"river", v:214.45}, {p:"KIRIKKALE DGKÇ", k:"naturalGas", v:0.00}, {p:"KIRIKKALE ÇÖP GAZI", k:"biomass", v:6.14}, {p:"İÇ ANADOLU DGKÇ", k:"naturalGas", v:4941.88}]},
+    {n:"KIRŞEHİR", c:[39.14, 34.16], plants:[{p:"AS KOÇ KIRŞEHİR BES", k:"biomass", v:48.73}, {p:"BARAN HES", k:"river", v:14.72}, {p:"GEYCEK RES", k:"wind", v:607.00}, {p:"HİRFANLI HES", k:"river", v:670.06}, {p:"KIRŞEHİR BES", k:"biomass", v:30.61}, {p:"KIRŞEHİR ŞEKER", k:"naturalGas", v:0.00}, {p:"SAYALAR RES", k:"wind", v:487.38}]},
+    {n:"KOCAELİ", c:[40.76, 29.93], plants:[{p:"ÇELİK HALAT", k:"naturalGas", v:0.00}, {p:"ÇOLAKOĞLU OP-1", k:"naturalGas", v:0.00}, {p:"ÇOLAKOĞLU OP-2", k:"naturalGas", v:3965.00}, {p:"İGSAŞ GÜBRE", k:"naturalGas", v:184.80}, {p:"İZAYDAŞ BES", k:"biomass", v:0.00}, {p:"ARÇELİK ÇAYIROVA", k:"naturalGas", v:0.00}, {p:"ASAŞ ALİMİNYUM", k:"naturalGas", v:0.00}, {p:"BİOSUN BİOGAZ", k:"biomass", v:23.50}, {p:"DEMİRCİLER HES", k:"river", v:4.26}, {p:"DEMİRER KABLO", k:"naturalGas", v:0.00}, {p:"ENERJİSA KÖSEKÖY DG", k:"naturalGas", v:0.00}, {p:"ENTEK KÖSEKÖY", k:"naturalGas", v:634.46}, {p:"GEBZE DGKÇ", k:"naturalGas", v:0.00}, {p:"GOODYEAR İZMİT", k:"naturalGas", v:76.80}, {p:"HAYAT KİMYA", k:"naturalGas", v:831.37}, {p:"KORUMA KLOR ALKALİ", k:"naturalGas", v:80.60}, {p:"KORUMA KLOR KOCAELİ", k:"naturalGas", v:113.00}, {p:"KOCAELİ ÇÖP BİYOGAZ", k:"biomass", v:123.37}, {p:"PAK GIDA KÖSEKÖY", k:"naturalGas", v:166.10}, {p:"NUH ÇİMENTO (ATIK ISI)", k:"naturalGas", v:401.73}, {p:"SARKUYSAN", k:"naturalGas", v:143.40}, {p:"TÜPRAŞ İZMİT", k:"naturalGas", v:2757.13}, {p:"YILDIZ ENTEGRE", k:"naturalGas", v:288.60}, {p:"YILDIZ ENTEGRE UZUNBEY", k:"naturalGas", v:0.00}]},
+    {n:"KONYA", c:[37.87, 32.48], plants:[{p:"ÇOBANYILDIZI (ÇUMRA) TES", k:"naturalGas", v:0.00}, {p:"ÇUMRA BES", k:"biomass", v:79.15}, {p:"ÇUMRA ŞEKER", k:"naturalGas", v:0.00}, {p:"İVRİZ HES", k:"river", v:0.00}, {p:"APA GES", k:"sun", v:89.77}, {p:"ATLAS İNŞAAT BİYOGAZ", k:"biomass", v:32.84}, {p:"ATLAS İNŞAAT ÇÖPGAZI", k:"biomass", v:27.39}, {p:"BBR KONYA ENERJİ", k:"naturalGas", v:54.56}, {p:"BİENTAŞ BES", k:"biomass", v:69.43}, {p:"BİENTAŞ BİYOKÜTLE", k:"biomass", v:5.98}, {p:"BİENTAŞ CİHANBEYLİ BES", k:"biomass", v:6.64}, {p:"BİENTAŞ KONYA TERMAL", k:"biomass", v:201.64}, {p:"DAMLAPINAR HES", k:"river", v:159.06}, {p:"EREĞLİ ŞEKER", k:"naturalGas", v:0.00}, {p:"BOZKIR ETEK HES", k:"river", v:139.95}, {p:"BOZKIR HES", k:"river", v:0.00}, {p:"KOMBASSAN KAĞIT", k:"naturalGas", v:100.10}, {p:"KONAKPINAR RES", k:"wind", v:143.81}, {p:"KONBELTAŞ KONYA BİOGAZ", k:"biomass", v:0.00}, {p:"KONYA ŞEKER", k:"naturalGas", v:0.00}, {p:"MAVİ HES KONYA", k:"river", v:46.44}, {p:"NEPSUN HADİM GES", k:"sun", v:167.40}, {p:"KUBİLAY JES", k:"geothermal", v:424.80}, {p:"KUYULUKOYAK RES", k:"wind", v:93.11}, {p:"SOLANA KONYA GES", k:"sun", v:0.00}, {p:"SELVA GIDA", k:"naturalGas", v:0.00}, {p:"SELÇUKLU ENERJİ", k:"naturalGas", v:0.00}, {p:"TOROS MERAM BES", k:"biomass", v:50.79}]},
+    {n:"KÜTAHYA", c:[39.42, 29.98], plants:[{p:"KÜTAHYA BES", k:"biomass", v:36.20}, {p:"KÜTAHYA ŞEKER", k:"naturalGas", v:0.00}]},
+    {n:"MALATYA", c:[38.35, 38.31], plants:[{p:"MALATYA 1 ÇÖP BES", k:"biomass", v:19.21}, {p:"MALATYA 2 ÇÖP BES", k:"biomass", v:32.16}, {p:"MALATYA ÇÖP BES", k:"biomass", v:0.00}, {p:"MALATYA ŞEKER", k:"naturalGas", v:0.00}, {p:"R3-MALATYA-1 RES", k:"wind", v:399.84}, {p:"TOHMA BES", k:"biomass", v:75.42}, {p:"TOHMA-MEDİK HES", k:"river", v:60.78}, {p:"SUÇATI HES MALATYA", k:"river", v:0.00}]},
+    {n:"MANİSA", c:[38.61, 27.42], plants:[{p:"ÖRLEMİŞ RES", k:"wind", v:421.57}, {p:"ÖZGÜN BES", k:"biomass", v:0.00}, {p:"İLKİM ENERJİ", k:"biomass", v:15.72}, {p:"İLTEK BES", k:"biomass", v:0.00}, {p:"ŞULE RES", k:"wind", v:443.84}, {p:"ARF ÖDEMİŞ BİOGAZ", k:"biomass", v:17.01}, {p:"EKOMAS BES", k:"biomass", v:197.39}, {p:"GÜRAL GERMİYAN RES", k:"wind", v:57.10}, {p:"DEMİRCİ HES", k:"river", v:0.00}, {p:"DESA ENERJİ", k:"naturalGas", v:244.85}, {p:"DESOLAR7 BES", k:"biomass", v:64.62}, {p:"MANİSA BİYOGAZ ENERJİ", k:"biomass", v:38.20}, {p:"MANİSA BİYOKÜTLE TESİSİ", k:"biomass", v:346.68}, {p:"MANİSA OSB", k:"naturalGas", v:680.53}, {p:"MANİSA OSB-2", k:"naturalGas", v:698.74}, {p:"KULA BES", k:"biomass", v:693.65}, {p:"KÜPTEPE RES", k:"wind", v:234.39}, {p:"MOSBİO BES", k:"biomass", v:231.89}, {p:"SALİHLİ 1 JES", k:"geothermal", v:241.35}, {p:"SALİHLİ 2 JES", k:"geothermal", v:430.32}, {p:"SALİHLİ 3 JES", k:"geothermal", v:525.85}, {p:"SALİHLİ BES", k:"biomass", v:241.56}, {p:"SOMA RES", k:"wind", v:2619.10}, {p:"SOMA-B", k:"coal", v:0.00}, {p:"SOMA1 RES", k:"wind", v:1072.78}, {p:"SOMA2 RES", k:"wind", v:348.21}, {p:"TÜRKERLER ALAŞEHİR-1 JES", k:"geothermal", v:41.67}, {p:"TÜRKERLER ALAŞEHİR-2 JES", k:"geothermal", v:524.14}, {p:"TÜRKERLER ALAŞEHİR-3 JES", k:"geothermal", v:582.06}, {p:"TÜRKMENBEYİ BES", k:"biomass", v:34.14}, {p:"ZORLU ALAŞEHİR JES", k:"geothermal", v:825.06}]},
+    {n:"MARDİN", c:[37.31, 40.73], plants:[{p:"ARTUKLU-1 GES", k:"sun", v:292.92}, {p:"BAĞLAMA RES", k:"wind", v:457.71}, {p:"ETİ BAKIR MAZIDAĞI TES", k:"naturalGas", v:869.00}, {p:"RA GÜNEŞ MARDİN GES", k:"sun", v:69.63}, {p:"MARDİN BES", k:"biomass", v:47.43}, {p:"ÇAĞ ÇAĞ HES", k:"river", v:15.15}]},
+    {n:"MERSİN", c:[36.81, 34.63], plants:[{p:"ÇİMSA ÇİMENTO", k:"naturalGas", v:125.00}, {p:"İOTA M.FIRINCI GES", k:"sun", v:58.90}, {p:"ALABALIK1-2 HES", k:"river", v:14.10}, {p:"ANAMUR HES", k:"river", v:3.36}, {p:"BERDAN HES", k:"river", v:250.11}, {p:"BOZYAZI HES", k:"river", v:0.00}, {p:"CALA HES", k:"river", v:15.76}, {p:"CAMİŞ MERSİN", k:"naturalGas", v:2409.33}, {p:"FRİTO LAY GIDA MERSİN", k:"naturalGas", v:13.50}, {p:"GEZENDE HES", k:"river", v:2183.49}, {p:"KADINCIK1 HES", k:"river", v:556.06}, {p:"KADINCIK2 HES", k:"river", v:417.00}, {p:"İNCİRLİ HES", k:"river", v:86.94}, {p:"LAMAS 3-4 HES", k:"river", v:7.16}, {p:"MUT DERİNÇAY HES", k:"river", v:11.76}, {p:"MUT RES", k:"wind", v:182.93}, {p:"OTLUCA HES MERSİN", k:"river", v:149.30}, {p:"PAMUK HES", k:"river", v:49.75}, {p:"KILCAN HES", k:"river", v:0.85}, {p:"SEBİL HES", k:"river", v:77.28}, {p:"SİLİFKE BES", k:"biomass", v:85.17}, {p:"SİLİFKE HES", k:"river", v:4.80}, {p:"TARSUS BES", k:"biomass", v:41.46}, {p:"TOROS ENERJİ MERSİN", k:"naturalGas", v:0.00}]},
+    {n:"MUĞLA", c:[37.21, 28.36], plants:[{p:"ÖREN HES", k:"river", v:10.53}, {p:"AREL FETHİYE", k:"biomass", v:64.40}, {p:"AREL MARMARİS", k:"biomass", v:21.83}, {p:"AREL MENTEŞE", k:"biomass", v:28.16}, {p:"AREL MİLAS", k:"biomass", v:52.92}, {p:"AREL ORTACA", k:"biomass", v:0.00}, {p:"DALAMAN HES", k:"river", v:161.79}, {p:"DALAMAN MOPAK", k:"naturalGas", v:0.00}, {p:"EGE 1 HES", k:"river", v:0.00}, {p:"EŞEN1 HES", k:"river", v:182.72}, {p:"EŞEN2 HES", k:"river", v:179.70}, {p:"FETHİYE HES", k:"river", v:0.00}, {p:"DAMLA1 HES", k:"river", v:78.19}, {p:"DAMLA2 HES", k:"river", v:16.35}, {p:"DATÇA AKSA RES", k:"wind", v:30.81}, {p:"DATÇA RES", k:"wind", v:47.03}, {p:"YATAĞAN TES", k:"coal", v:8863.00}]},
+    {n:"MUŞ", c:[38.74, 41.50], plants:[{p:"MUŞ DOĞAN HES", k:"river", v:18.09}, {p:"MUŞ ŞEKER", k:"naturalGas", v:0.00}, {p:"R3 MUŞ-4 RES", k:"wind", v:389.31}, {p:"VARTO SÖNMEZ HES", k:"river", v:2.64}]},
+    {n:"NEVŞEHİR", c:[38.62, 34.71], plants:[]},
+    {n:"NİĞDE", c:[37.96, 34.67], plants:[{p:"BEREKETLİ RES", k:"wind", v:148.25}, {p:"BOR BES NİĞDE", k:"biomass", v:52.79}, {p:"BOR ŞEKER", k:"naturalGas", v:0.00}, {p:"G4-BOR-1 GES", k:"sun", v:876.58}, {p:"G4-BOR-2 GES", k:"sun", v:912.80}, {p:"G4-BOR-3 GES", k:"sun", v:927.43}, {p:"BOREN BES", k:"biomass", v:0.00}, {p:"ÇAMARDI HES", k:"river", v:0.00}]},
+    {n:"ORDU", c:[40.98, 37.88], plants:[{p:"ÇİLEHANE HES", k:"river", v:10.07}, {p:"BAYRA HES", k:"river", v:8.10}, {p:"DARCA HES", k:"river", v:40.50}, {p:"ORDU HES", k:"river", v:141.16}, {p:"ORDU ÇÖP GAZ", k:"biomass", v:22.86}, {p:"ORDU-4 RES", k:"wind", v:93.55}, {p:"SABUNSUYU 2 HES", k:"river", v:8.98}]},
+    {n:"OSMANİYE", c:[37.07, 36.24], plants:[{p:"ASLANTAŞ HES", k:"river", v:2880.00}, {p:"BERKE HES", k:"river", v:6066.00}, {p:"OSMANİYE BİYOKÜTLE", k:"biomass", v:4.31}]},
+    {n:"RİZE", c:[41.02, 40.51], plants:[{p:"İKİZDERE HES", k:"river", v:258.70}, {p:"CEVİZLİK HES", k:"river", v:350.17}, {p:"FINDIK HES", k:"river", v:6.70}, {p:"RİZE KALE HES", k:"river", v:65.67}]},
+    {n:"SAKARYA", c:[40.77, 30.40], plants:[{p:"ÜREGEN ENERJİ BİYOGAZ", k:"biomass", v:0.00}, {p:"ALADEREÇAM HES", k:"river", v:0.00}, {p:"ASLAN BİYOGAZ", k:"biomass", v:63.90}, {p:"DOĞANÇAY HES", k:"river", v:0.00}, {p:"DOĞANÇAY HES PAMUKOVA", k:"river", v:130.10}, {p:"GOODYEAR ADAPAZARI", k:"naturalGas", v:173.04}, {p:"GEYVE RES", k:"wind", v:1847.64}, {p:"KABACA HES", k:"river", v:20.00}, {p:"HIZIR HES", k:"river", v:0.00}, {p:"SAKARYA BİYOGAZ", k:"biomass", v:186.70}, {p:"PAMUKOVA BİOGAZ", k:"biomass", v:0.00}, {p:"PAMUKOVA HES", k:"river", v:39.58}, {p:"PAMUKOVA RES", k:"wind", v:222.78}]},
+    {n:"SAMSUN", c:[41.29, 36.33], plants:[{p:"ARCA HES", k:"river", v:65.70}, {p:"BİLGİN SAMSUN DGKÇ", k:"naturalGas", v:2266.59}, {p:"DURU HES SAMSUN", k:"river", v:117.44}, {p:"HAMZALI HES", k:"river", v:214.45}, {p:"HASAN UĞURLU HES", k:"river", v:3732.44}, {p:"HAVZA RES", k:"wind", v:160.83}, {p:"KOÇAK HES", k:"river", v:58.50}, {p:"SAMSUN VEZİRKÖPRÜ ORMAN KOJEN", k:"naturalGas", v:0.00}, {p:"SUAT UĞURLU HES", k:"dammedHydro", v:1080.56}, {p:"TOROS TARIM SAMSUN", k:"naturalGas", v:0.00}, {p:"MİSKEVANK RES", k:"wind", v:16.97}, {p:"ÇARŞAMBA BES", k:"biomass", v:333.34}, {p:"ÇARŞAMBA HES", k:"river", v:215.71}]},
+    {n:"SİİRT", c:[37.93, 41.94], plants:[{p:"ÇETİN HES", k:"river", v:2084.60}, {p:"ÇETİNTEPE BARAJI VE HES", k:"dammedHydro", v:5.33}, {p:"ŞİRVAN HES", k:"river", v:513.85}, {p:"ALKUMRU HES", k:"river", v:2211.34}, {p:"KULP1 HES", k:"river", v:17.90}, {p:"KULP4 HES", k:"river", v:5.20}, {p:"SIRIMTAŞ HES", k:"river", v:80.30}, {p:"SİİRT BES", k:"biomass", v:0.00}]},
+    {n:"SİNOP", c:[42.02, 35.15], plants:[]},
+    {n:"SİVAS", c:[39.74, 37.01], plants:[{p:"ÇIRAKDAMI HES", k:"river", v:66.96}, {p:"ŞARKIŞLA BİYOGAZ", k:"biomass", v:22.15}, {p:"CEMEL HES", k:"river", v:444.15}, {p:"DOĞANŞAR HES", k:"river", v:3.97}, {p:"DOĞU HES", k:"river", v:66.02}, {p:"HACIMERCAN HES", k:"river", v:53.33}, {p:"HACININOĞLU HES", k:"river", v:1756.40}, {p:"HAMAL GES", k:"sun", v:49.82}, {p:"KOYULHİSAR BEREKET HES", k:"river", v:968.44}, {p:"KOYULHİSAR EÜAŞ HES", k:"river", v:1.52}, {p:"SIZIR HES", k:"river", v:132.00}, {p:"SİVAS RES", k:"wind", v:116.76}, {p:"SİVAS ÇÖP BES", k:"biomass", v:59.23}, {p:"ÇAMLIGÖZE HES", k:"river", v:360.19}]},
+    {n:"ŞANLIURFA", c:[37.16, 38.79], plants:[]},
+    {n:"ŞIRNAK", c:[37.51, 42.45], plants:[]},
+    {n:"TEKİRDAĞ", c:[40.97, 27.51], plants:[{p:"ÇORLU BES", k:"biomass", v:206.35}, {p:"ÇORLU KOJENERASYON", k:"naturalGas", v:122.10}, {p:"ŞENKÖY RES", k:"wind", v:322.74}, {p:"BARBAROS RES", k:"wind", v:124.22}, {p:"ERAK GİYİM", k:"naturalGas", v:0.00}, {p:"ATAKALE RES", k:"wind", v:300.36}, {p:"PANAB ÇORLU BİYOGAZ", k:"biomass", v:114.47}, {p:"KIYIKÖY RES (TEKİRDAĞ)", k:"wind", v:497.80}, {p:"PANAB TEKİRDAĞ BİYOGAZ", k:"biomass", v:57.03}, {p:"TEKİRDAĞ DGKÇ (A)", k:"naturalGas", v:4075.49}, {p:"TEKİRDAĞ DGKÇ (B)", k:"naturalGas", v:3472.00}]},
+    {n:"TOKAT", c:[40.31, 36.55], plants:[{p:"NİKSAR HES", k:"river", v:748.83}, {p:"SUÇATI HES TOKAT", k:"river", v:1.20}, {p:"TURHAL ŞEKER", k:"naturalGas", v:0.00}]},
+    {n:"TRABZON", c:[41.00, 39.71], plants:[{p:"ÇEŞMEBAŞI HES", k:"river", v:94.01}, {p:"ÇUKURÇAYI HES", k:"river", v:17.32}, {p:"ÖNER HES", k:"river", v:97.60}, {p:"ÜLKÜN HES", k:"river", v:127.00}, {p:"ARAKLI KAÇKAR HES", k:"river", v:10.35}, {p:"ARAKLI1 HES", k:"river", v:0.66}, {p:"ARAKLI3 HES", k:"river", v:2.52}, {p:"ARAKLI4 HES", k:"river", v:1.04}, {p:"AYVADERE HES", k:"river", v:18.87}, {p:"ATAKÖY HES TRABZON", k:"river", v:9.60}, {p:"DEREİÇİ HES TRABZON", k:"river", v:5.00}, {p:"DAĞBAŞI HES", k:"river", v:23.12}, {p:"DÜZKÖY HES", k:"river", v:32.55}, {p:"ERENLER HES", k:"river", v:80.74}, {p:"BAŞARAN HES", k:"river", v:0.00}, {p:"MANAHOZ HES", k:"river", v:22.41}, {p:"MAVİ HES TRABZON", k:"river", v:13.72}, {p:"R3 TRABZON-1 RES", k:"wind", v:118.96}, {p:"SARMAŞIK1 HES", k:"river", v:67.42}, {p:"SARMAŞIK2 HES", k:"river", v:95.69}, {p:"TONYA I-II HES", k:"river", v:0.00}, {p:"TRABZON RİZE ÇÖP GAZI", k:"biomass", v:0.00}, {p:"YANBOLU HES", k:"river", v:13.33}, {p:"YUKARI MANAHOZ HES", k:"river", v:43.90}, {p:"ÇAĞLAYAN HES TRABZON", k:"river", v:6.30}, {p:"ÇAYKARA HES", k:"river", v:102.29}]},
+    {n:"TUNCELİ", c:[39.10, 39.54], plants:[{p:"ÇEMİŞGEZEK HES", k:"river", v:0.00}, {p:"PİRO HES", k:"river", v:4.85}, {p:"UZUNÇAYIR HES", k:"dammedHydro", v:701.38}, {p:"ÇEMİŞGEZEK HES (KOD)", k:"river", v:0.00}]},
+    {n:"UŞAK", c:[38.67, 29.40], plants:[{p:"UŞAK BİOGAZ", k:"biomass", v:37.01}, {p:"UŞAK RES", k:"wind", v:635.86}, {p:"UŞAK ŞEKER", k:"naturalGas", v:0.00}]},
+    {n:"VAN", c:[38.50, 43.37], plants:[{p:"BALIKLI I-II-III HES", k:"river", v:36.87}, {p:"ENGİL HES", k:"river", v:40.60}, {p:"ERCİŞ HES", k:"river", v:14.10}, {p:"ERCİŞ ŞEKER", k:"naturalGas", v:0.00}, {p:"GÜN GÜNEŞ VAN ARISU GES", k:"sun", v:387.24}, {p:"OMİCRON ENGİL208 GES", k:"sun", v:72.25}, {p:"OMİCRON ERCİŞ GES", k:"sun", v:72.12}, {p:"PSİ ENGİL 207 GES", k:"sun", v:78.84}]},
+    {n:"YALOVA", c:[40.65, 29.27], plants:[]},
+    {n:"YOZGAT", c:[39.82, 34.81], plants:[{p:"ÇEKEREK BİYOGAZ", k:"biomass", v:18.63}, {p:"ÇEKEREK HES", k:"river", v:425.03}, {p:"ÇEKEREK SÜREYYABEY HES", k:"river", v:338.24}, {p:"BOĞAZLIYAN ŞEKER", k:"naturalGas", v:0.00}, {p:"ITC-KA ENERJİ YOZGAT", k:"biomass", v:15.86}, {p:"R3-YOZGAT-1 RES", k:"wind", v:147.90}, {p:"YOZGAT ŞEKER", k:"naturalGas", v:0.00}]},
+    {n:"ZONGULDAK", c:[41.45, 31.79], plants:[{p:"AMBARLIK1-2 HES", k:"river", v:75.72}, {p:"ANKUTSAN KOJENERASYON", k:"naturalGas", v:0.00}, {p:"ARMUTÇUK RES", k:"wind", v:1134.37}, {p:"ERDEMİR", k:"coal", v:2603.40}, {p:"FİLYOS ENERJİ", k:"naturalGas", v:84.80}, {p:"ZETES1", k:"coal", v:3806.00}, {p:"ZETES2", k:"coal", v:0.00}, {p:"ZETES3", k:"coal", v:28496.00}, {p:"ZONGULDAK RES", k:"wind", v:532.71}, {p:"ÇATALAĞZI TES", k:"coal", v:3191.00}, {p:"ÇAYCUMA SANTRALİ", k:"naturalGas", v:0.00}]}
+];
+
+
+const allCities = rawCities.map(city => {
+  let total = 0;
+  let cleanPlants = city.plants.map(p => {
+    let val = cleanVal(p.v);
+    total += val;
+    return { ...p, v: val };
+  });
+  return { ...city, plants: cleanPlants, totalMWh: total };
+});
+
+let baseResourceTotals = { ALL: 0, wind: 0, sun: 0, hydro: 0, thermal: 0, geothermal: 0, biomass: 0 };
+
+function updateSourceFilterTotals() {
+  const resourceTotals = { ALL: 0, wind: 0, sun: 0, hydro: 0, thermal: 0, geothermal: 0, biomass: 0 };
+  let renewableSum = 0;
+  let nationalTotal = 0;
+
+  allCities.forEach(city => {
+    city.plants.forEach(p => {
+      const grp = typeCfg[p.k]?.group;
+      if (grp && resourceTotals[grp] !== undefined) {
+        resourceTotals[grp] += p.v;
+      }
+      resourceTotals.ALL += p.v;
+      nationalTotal += p.v;
+      if (typeCfg[p.k]?.renewable) {
+        renewableSum += p.v;
+      }
+    });
+  });
+
+  baseResourceTotals = { ...resourceTotals };
+
+  const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + "k" : n.toFixed(0)) + " MWh";
+
+  for (let key in resourceTotals) {
+    const el = document.getElementById("tot_" + key);
+    if (el) el.innerText = fmt(resourceTotals[key]);
+  }
+
+  const renPct = nationalTotal > 0 ? ((renewableSum / nationalTotal) * 100).toFixed(1) : "0.0";
+  document.getElementById("hudRenewablePct").innerText = `% ${renPct}`;
+}
+updateSourceFilterTotals();
+
+let cityMarkers = [];
+let gridLines = [];
+let activeFilter = 'ALL';
+let currentSelectedCityIdx = null;
+
+// GERÇEK TEİAŞ 380 kV / 154 kV İLETİM ŞEBEKESİ KORİDORLARI
+const gridConnections = [
+  // Trakya & Marmara Sanayi Ringi
+  { from: "ÇANAKKALE", to: "İSTANBUL", volt: "380 kV Çift Devre", desc: "Biga kömür termik ve rüzgar üretimini Trakya üzerinden İstanbul metropolüne taşır." },
+  { from: "KIRKLARELİ", to: "İSTANBUL", volt: "380 kV", desc: "Hamitabat DGKÇ ve rüzgar enerjisinin Avrupa Yakası dağıtım baralarına aktarımı." },
+  { from: "TEKİRDAĞ", to: "İSTANBUL", volt: "380 kV", desc: "Marmara Ereğlisi çevrim santralleri ile Trakya sanayi yükü transfer hattı." },
+  { from: "BALIKESİR", to: "BURSA", volt: "380 kV", desc: "Güney Marmara RES koridoru ile Bandırma üretiminin Bursa otomotiv sanayisine iletimi." },
+  { from: "BURSA", to: "KOCAELİ", volt: "380 kV", desc: "Bursa DGKÇ enerjisini Kocaeli ağır sanayi ve petrokimya havzasına bağlar." },
+  { from: "KOCAELİ", to: "İSTANBUL", volt: "380 kV Yeraltı Kablosu", desc: "Asya-Avrupa enterkonneksiyonu; Gebze ve İzmit yükünü Anadolu Yakasına aktarır." },
+
+  // Batı Anadolu - Ege Ringi
+  { from: "İZMİR", to: "MANİSA", volt: "380 kV", desc: "Aliağa enerji üssü (ithal kömür/DGKÇ/RES) ile Manisa Organize Sanayi aksı iletimi." },
+  { from: "MANİSA", to: "BALIKESİR", volt: "380 kV", desc: "Soma termik havzasını Kuzey Ege ve Marmara ana omurgasına bağlayan transit hat." },
+  { from: "AYDIN", to: "DENİZLİ", volt: "154 kV / 380 kV", desc: "Büyük Menderes Grabeni Jeotermal (JES) havzası enerjisinin Denizli sanayisine iletimi." },
+  { from: "DENİZLİ", to: "AFYONKARAHİSAR", volt: "380 kV", desc: "Ege jeotermal ve termik enerjisinin İç Batı Anadolu düğüm noktasına tahliyesi." },
+  { from: "MUĞLA", to: "AYDIN", volt: "380 kV", desc: "Yatağan ve Yeniköy kömür termik santrallerinin Ege şebekesine baz yük enjeksiyonu." },
+  { from: "AFYONKARAHİSAR", to: "ESKİŞEHİR", volt: "380 kV", desc: "Ege-İç Anadolu elektrik koridoru; bölgesel yük transferi sağlar." },
+  { from: "ESKİŞEHİR", to: "ANKARA", volt: "380 kV Çift Devre", desc: "Batı Anadolu enterkonnekte üretiminin Başkent tüketim merkezine aktarımı." },
+
+  // Karadeniz - İç Anadolu Enerji Koridoru
+  { from: "ZONGULDAK", to: "ANKARA", volt: "380 kV Çift Devre", desc: "ZETES (2.790 MW) ve Çatalağzı kömür üretimini doğrudan İç Anadolu yük merkezine pompalar." },
+  { from: "SAMSUN", to: "AMASYA", volt: "380 kV", desc: "Hasan Uğurlu HES ve Samsun DGKÇ üretimini Orta Karadeniz trafo merkezlerine dağıtır." },
+  { from: "AMASYA", to: "YOZGAT", volt: "380 kV", desc: "Karadeniz hidroelektrik arzının İç Anadolu omurgasına transit transfer hattı." },
+  { from: "YOZGAT", to: "ANKARA", volt: "380 kV", desc: "Orta ve Doğu Karadeniz elektrik üretiminin Başkente beslendiği ana hat." },
+
+  // Doğu Karadeniz Mega Hidro Koridoru
+  { from: "ARTVİN", to: "ERZURUM", volt: "380 kV Çift Devre", desc: "Çoruh Havzası (Deriner, Yusufeli, Borçka) mega barajlarının 3.000+ MW hidroelektrik çıkış kapısı." },
+  { from: "ERZURUM", to: "ERZİNCAN", volt: "380 kV", desc: "Doğu Anadolu hidro arzını batıya taşıyan ulusal yüksek gerilim otobanı." },
+  { from: "ERZİNCAN", to: "SİVAS", volt: "380 kV", desc: "Doğu-Batı enerji koridoru; hidroelektrik arzı Sivas ana tevzi trafosuna iletilir." },
+  { from: "SİVAS", to: "KAYSERİ", volt: "380 kV", desc: "Doğu Anadolu temiz hidro üretiminin Orta Anadolu sanayi merkezine transferi." },
+
+  // Fırat - Dicle & Güneydoğu Hidro Omurgası
+  { from: "SİİRT", to: "DİYARBAKIR", volt: "380 kV", desc: "Çetin ve Alkumru HES santrallerinin Botan Vadisi'nden Güneydoğu şebekesine bağlantısı." },
+  { from: "DİYARBAKIR", to: "MALATYA", volt: "380 kV", desc: "Karakaya HES ve Dicle havzası üretiminin Doğu Anadolu omurgasına transferi." },
+  { from: "MALATYA", to: "KAYSERİ", volt: "380 kV Çift Devre", desc: "Keban ve Karakaya mega hidro santrallerinin elektriğini Batı'ya taşıyan ana omurga." },
+  { from: "KAYSERİ", to: "ANKARA", volt: "380 kV Çift Devre", desc: "Türkiye'nin en kritik transit iletim hattı; Doğu'nun ucuz elektriğini Başkente taşır." },
+
+  // Akdeniz & Çukurova Enerji Ringi
+  { from: "KAHRAMANMARAŞ", to: "GAZİANTEP", volt: "380 kV", desc: "Afşin-Elbistan ve baraj üretimlerinin Güneydoğu sanayisine tahliyesi." },
+  { from: "HATAY", to: "ADANA", volt: "380 kV", desc: "İskenderun Körfezi ithal kömür TES (Atlas) üretiminin Çukurova baralarına aktarımı." },
+  { from: "ADANA", to: "MERSİN", volt: "380 kV", desc: "Çukurova sanayi ve liman bölgesinin gerilim/reaktif güç dengeleme hattı." },
+  { from: "MERSİN", to: "KARAMAN", volt: "380 kV", desc: "Toroslar üzerinden Akdeniz ile İç Anadolu'yu bağlayan dik enerji koridoru." },
+  { from: "KARAMAN", to: "KONYA", volt: "380 kV", desc: "Ermenek HES ve Karaman RES üretiminin Konya yük merkezine transferi." },
+  { from: "KONYA", to: "ANKARA", volt: "380 kV", desc: "Karapınar GES devasa güneş arzını ve Konya yükünü Ankara ringine bağlar." },
+  { from: "ANTALYA", to: "BURDUR", volt: "380 kV", desc: "Oymapınar HES ve Batı Akdeniz turizm bölgesinin şebeke besleme hattı." },
+  { from: "BURDUR", to: "AFYONKARAHİSAR", volt: "380 kV", desc: "Güney-Kuzey transit enerji koridoru; Akdeniz arzını İç Ege'ye bağlar." }
+];
+
+// İLETİM HATLARI ÇİZİMİ (AKILLI FİLTRE DESTEKLİ)
+function drawGridLines() {
+  gridLines.forEach(l => map.removeLayer(l));
+  gridLines = [];
+
+  const visibleCityNames = cityMarkers.map(m => m.city.n);
+
+  gridConnections.forEach(conn => {
+    const isFromVisible = visibleCityNames.includes(conn.from);
+    const isToVisible = visibleCityNames.includes(conn.to);
+
+    // Yalnızca her iki uçtaki şehir de aktif filtrede ekranda ise çiz
+    if (isFromVisible && isToVisible) {
+      const c1 = allCities.find(c => c.n === conn.from);
+      const c2 = allCities.find(c => c.n === conn.to);
+      if (c1 && c2) {
+        const baseLine = L.polyline([c1.c, c2.c], {
+          color: '#00d2ff',
+          weight: 1.5,
+          opacity: 0.25
+        }).addTo(map);
+        
+        const flowLine = L.polyline([c1.c, c2.c], {
+          color: '#00d2ff',
+          weight: 3,
+          opacity: 0.8,
+          className: 'grid-line-anim'
+        }).addTo(map);
+
+        flowLine.bindPopup(`
+          <div style="min-width:260px; padding:6px;">
+            <div style="color:var(--neon-pink); font-weight:bold; font-size:12px; margin-bottom:5px; border-bottom:1px solid rgba(247,37,133,0.3); padding-bottom:3px;">
+              ⚡ TEİAŞ ENTERKONNEKTE İLETİM HATTI
+            </div>
+            <div style="font-size:11px; color:#fff; margin-bottom:3px;">
+              <strong>GÜZERGAH:</strong> ${conn.from} ➔ ${conn.to}
+            </div>
+            <div style="font-size:10px; color:var(--neon-yellow); margin-bottom:6px;">
+              <strong>NOMİNAL GERİLİM:</strong> ${conn.volt}
+            </div>
+            <div style="font-size:10px; color:#cbd5e1; line-height:1.5;">
+              <strong>ŞEBEKE ROLÜ:</strong> ${conn.desc}
+            </div>
+          </div>
+        `);
+
+        gridLines.push(baseLine, flowLine);
+      }
+    }
+  });
+}
+
+function getScaleColor(v) {
+  if (v > 5000) return "#10b981";
+  if (v > 1000) return "#00d2ff";
+  if (v > 100)  return "#f9d423";
+  if (v > 0)    return "#f72585";
+  return "#475569";
+}
+
+function getBaseRadius(v) {
+  if (v <= 0) return 4;
+  return Math.max(5, Math.min(22, Math.log10(v + 1) * 4.5));
+}
+
+function getCityFilteredValue(city, filter) {
+  if (filter === 'ALL') return city.totalMWh;
+  return city.plants
+    .filter(p => typeCfg[p.k]?.group === filter)
+    .reduce((sum, p) => sum + p.v, 0);
+}
+
+function renderMapMarkers() {
+  cityMarkers.forEach(item => map.removeLayer(item.marker));
+  cityMarkers = [];
+
+  const zoom = map.getZoom();
+  const zoomScale = zoom / 6;
+
+  const displayList = allCities.map((city, idx) => {
+    const filterVal = getCityFilteredValue(city, activeFilter);
+    return { city, idx, filterVal };
+  }).filter(item => activeFilter === 'ALL' || item.filterVal > 0);
+
+  displayList.sort((a, b) => b.filterVal - a.filterVal);
+
+  const top8Cities = [...allCities].sort((a,b) => b.totalMWh - a.totalMWh).slice(0, 8).map(c => c.n);
+
+  displayList.forEach(item => {
+    const { city, idx, filterVal } = item;
+    const color = getScaleColor(filterVal);
+    const baseRadius = getBaseRadius(filterVal);
+    const dynamicRadius = baseRadius * zoomScale;
+    
+    const isPermanent = zoom >= 7 || top8Cities.includes(city.n);
+
+    const marker = L.circleMarker(city.c, { 
+      radius: dynamicRadius, 
+      color: color, 
+      fillColor: color, 
+      fillOpacity: 0.85, 
+      weight: Math.max(1.2, 1.8 * zoomScale) 
+    }).addTo(map);
+
+    marker.bindTooltip(
+      `<span>${city.n} <small>(${filterVal >= 1000 ? (filterVal/1000).toFixed(1)+'k' : filterVal.toFixed(0)} MWh)</small></span>`, 
+      { 
+        permanent: isPermanent, 
+        direction: 'top', 
+        className: 'city-label', 
+        offset: [0, -dynamicRadius - 2] 
+      }
+    );
+    
+    marker.on("click", () => handleCityClick(idx));
+    cityMarkers.push({ marker, baseRadius, city, filterVal });
+  });
+
+  drawGridLines();
+}
+
+map.on('zoomend', () => {
+  renderMapMarkers();
+});
+
+renderMapMarkers();
+
+function setResourceFilter(grp) {
+  activeFilter = grp;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  
+  const targetBtn = window.event?.currentTarget || window.event?.target?.closest('.filter-btn');
+  if (targetBtn) targetBtn.classList.add('active');
+  
+  renderMapMarkers();
+  showResourceInfo(grp);
+}
+
+function showResourceInfo(grp) {
+  const info = resourceIntel[grp];
+  if (!info) return;
+
+  document.getElementById("resModalName").innerText = info.title;
+  document.getElementById("resModalDesc").innerText = info.desc;
+  document.getElementById("resModalStats").innerHTML = info.stats;
+  document.getElementById("resourceInfoModal").style.display = "block";
+}
+
+function closeResourceInfo() {
+  document.getElementById("resourceInfoModal").style.display = "none";
+}
+
+// TÜRKÇE KARAKTER DUYARLI NORMALİZASYON
+function normalizeTR(text) {
+  if (!text) return "";
+  return text
+    .toLocaleLowerCase('tr-TR')
+    .replace(/ı/g, 'i')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .trim();
+}
+
+function filterSearch(e) {
+  const query = e.target.value;
+  const normQuery = normalizeTR(query);
+  const dropdown = document.getElementById("searchDropdown");
+
+  if (!normQuery) {
+    dropdown.style.display = "none";
+    dropdown.innerHTML = "";
+    return;
+  }
+
+  const matches = allCities
+    .map((city, idx) => ({ city, idx }))
+    .filter(item => normalizeTR(item.city.n).includes(normQuery));
+
+  if (matches.length > 0) {
+    dropdown.innerHTML = matches.slice(0, 6).map(m => `
+      <div onclick="selectCityFromSearch(${m.idx})" style="padding:8px 12px; font-family:'JetBrains Mono'; font-size:11px; cursor:pointer; border-bottom:1px solid rgba(0,210,255,0.12); color:#fff; display:flex; justify-content:space-between; align-items:center; transition:0.2s;" onmouseover="this.style.background='rgba(0,210,255,0.15)'" onmouseout="this.style.background='transparent'">
+        <span>${m.city.n}</span>
+        <small style="color:var(--neon-yellow); font-weight:bold;">${m.city.totalMWh.toFixed(0)} MWh</small>
+      </div>
+    `).join("");
+    dropdown.style.display = "block";
+  } else {
+    dropdown.innerHTML = `<div style="padding:8px 12px; font-family:'JetBrains Mono'; font-size:11px; color:#94a3b8;">Eşleşen il bulunamadı</div>`;
+    dropdown.style.display = "block";
+  }
+}
+
+function selectCityFromSearch(idx) {
+  const city = allCities[idx];
+  document.getElementById("citySearchInput").value = city.n;
+  document.getElementById("searchDropdown").style.display = "none";
+  map.flyTo(city.c, 8, { duration: 1.2 });
+  handleCityClick(idx);
+}
+
+function checkSearchEnter(e) {
+  if (e.key === "Enter") {
+    const normQuery = normalizeTR(e.target.value);
+    const foundIdx = allCities.findIndex(c => normalizeTR(c.n).includes(normQuery));
+    if (foundIdx !== -1) {
+      selectCityFromSearch(foundIdx);
+    }
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#searchBoxWrapper')) {
+    const dd = document.getElementById("searchDropdown");
+    if (dd) dd.style.display = "none";
+  }
+});
+
+window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    document.getElementById('citySearchInput').focus();
+  }
+});
+
+function handleCityClick(idx) {
+    currentSelectedCityIdx = idx;
+    const city = allCities[idx];
+    document.getElementById("selCityName").innerText = city.n;
+    document.getElementById("selectionOverlay").style.display = "flex";
+    document.getElementById("selCityTotal").innerText = city.totalMWh.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) + " MWh";
+
+    const sorted = [...allCities].sort((a,b) => b.totalMWh - a.totalMWh);
+    const rank = sorted.findIndex(c => c.n === city.n) + 1;
+    document.getElementById("selCityRank").innerText = `TR Üretim Sırası: #${rank} / ${allCities.length}`;
+
+    renderPlantButtons();
+    drawCityDonut(city);
+}
+
+// SANTRALLERİ EN ÇOKTAN EN AZA SIRALAYARAK LİSTELEME
+function renderPlantButtons() {
+    if (currentSelectedCityIdx === null) return;
+    const city = allCities[currentSelectedCityIdx];
+    const btnContainer = document.getElementById("plantButtons");
+    const hideZeros = document.getElementById("hideZeros").checked;
+    btnContainer.innerHTML = "";
+
+    if (city.plants.length === 0) {
+      btnContainer.innerHTML = `<div style="color:#64748b; font-family:'JetBrains Mono'; font-size:12px; padding:15px 0;">[KAYIT YOK]: İlgili il sınırlarında sisteme entegre aktif santral verisi bulunmamaktadır.</div>`;
+      return;
+    }
+
+    // Orijinal indeksleri koruyarak büyükten küçüğe sıralama
+    const sortedPlantsWithOriginalIdx = city.plants
+      .map((p, originalIdx) => ({ ...p, originalIdx }))
+      .sort((a, b) => b.v - a.v);
+
+    sortedPlantsWithOriginalIdx.forEach((p) => {
+        if (hideZeros && p.v <= 0) return;
+        const btn = document.createElement("button");
+        btn.className = "plant-btn";
+        btn.innerHTML = `
+          <span>${typeCfg[p.k]?.i || '⚡'} ${p.p} <small style="color:#94a3b8;">[${typeCfg[p.k]?.l || p.k}]</small></span>
+          <span style="color:var(--neon-yellow); font-weight:bold;">${p.v.toFixed(2)} MWh</span>
+        `;
+        btn.onclick = () => openSim(currentSelectedCityIdx, p.originalIdx);
+        btnContainer.appendChild(btn);
+    });
+}
+
+let donutObj = null;
+let areaObj = null;
+let currentChartData = []; 
+let activeSimTimer = null;
+let activeSimState = { plant: null, baseV: 0, currentType: 'line', filled: true, axis: 'x' };
+
+function openSim(cityIdx, plantIdx) {
+    const city = allCities[cityIdx];
+    const plant = city.plants[plantIdx];
+    activeSimState.plant = plant;
+    activeSimState.baseV = plant.v;
+
+    document.getElementById("selectionOverlay").style.display = "none";
+    document.getElementById("simOverlay").style.display = "flex";
+    document.getElementById("cityTitle").innerText = city.n;
+    document.getElementById("plantInfo").innerText = `ÜNİTE: ${plant.p} // TİP: ${typeCfg[plant.k]?.l || plant.k}`;
+    document.getElementById("sourceIcon").innerText = typeCfg[plant.k]?.i || "⚡";
+    document.getElementById("v1").innerText = plant.v.toFixed(2) + " MWh";
+    document.getElementById("textChartTotal").innerText = Math.round(plant.v).toLocaleString('tr-TR');
+
+    if (plant.v > 1000) {
+      document.getElementById("vGridTEIAS").innerText = "380 kV (Çift Devre)";
+    } else {
+      document.getElementById("vGridTEIAS").innerText = "154 kV (Entegre)";
+    }
+
+    document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.ctrl-btn')[0].classList.add('active');
+
+    drawTrendChart(plant);
+    
+    const log = document.getElementById("terminal");
+    const zaman = new Date().toLocaleTimeString();
+    
+    let teknikDetay = "";
+    if (plant.k === "geothermal") {
+        teknikDetay = `<br>&gt; [TELEMETRİ]: Jeotermal kuyu içi akışkan sıcaklığı 180°C seviyesinde kararlı. Enjeksiyon ve üretim debileri dengede.<br>&gt; [ŞEBEKE]: Jeneratör terminal gerilimi 15.4 kV olarak ölçüldü. Step-up trafoları ile şebekeye güç aktarımı sorunsuz.`;
+    } else if (plant.k === "wind") {
+        teknikDetay = `<br>&gt; [TELEMETRİ]: Bölgesel rüzgar hızı ortalaması 9.2 m/s. Kanat açısı (Pitch) kontrol üniteleri senkron çalışıyor.<br>&gt; [ŞEBEKE]: Türbin jeneratörleri 50 Hz nominal frekansa kilitlendi, şebekeye verilen aktif güç yük eğrisiyle uyumlu.`;
+    } else if (plant.k === "sun") {
+        teknikDetay = `<br>&gt; [TELEMETRİ]: Fotovoltaik panel yüzey sıcaklığı ve ışınım şiddeti nominal sınırlarda. Evirici (Inverter) verimi: 98.1%.<br>&gt; [ŞEBEKE]: MPPT izleme algoritması aktif. DC-AC dönüşümü sonrasında dağıtım barasına kesintisiz güç enjekte ediliyor. Gece üretimi sıfır (0 MWh).`;
+    } else if (plant.k === "dammedHydro" || plant.k === "river") {
+        teknikDetay = `<br>&gt; [TELEMETRİ]: Francis türbini giriş vanası pozisyonu kararlı. Net düşü yüksekliği veritabanıyla uyumlu.<br>&gt; [ŞEBEKE]: Jeneratör sargı sıcaklıkları güvenli bölgede. TEİAŞ Yük Tevzi talimatlarına göre günlük emiş profili optimize edildi.`;
+    } else {
+        teknikDetay = `<br>&gt; [TELEMETRİ]: Termik kazan buhar basıncı ve sıcaklığı (540°C) nominal parametrelerde. Türbin-jeneratör mili eksenel sapması sıfır.<br>&gt; [ŞEBEKE]: Jeneratör uyartım sistemi deverede. Enterkonnekte şebenin baz yük ihtiyacı kesintisiz karşılanıyor.`;
+    }
+
+    log.innerHTML = `&gt; [${zaman}] [BAĞLANTI_OK]: ${city.n} // ${plant.p} SCADA telemetri köprüsü kuruldu.<br>&gt; [EPİAŞ]: Şeffaflık Platformu veritabanından ${plant.v.toFixed(2)} MWh üretim verisi doğrulandı.${teknikDetay}`;
+    
+    gsap.to(".pulse", { top: "100%", duration: 0.8, repeat: -1, ease: "none", stagger: 0.2 });
+
+    if (activeSimTimer) clearInterval(activeSimTimer);
+    activeSimTimer = setInterval(() => {
+      if (document.getElementById("simOverlay").style.display !== "flex") {
+        clearInterval(activeSimTimer);
+        return;
+      }
+      
+      // Canlı görünümde günlük toplamı rastgele değiştirme. EPİAŞ verisini koru.
+      const total = cleanVal(plant.v);
+      document.getElementById("v1").innerText = total.toFixed(2) + " MWh";
+      document.getElementById("textChartTotal").innerText = Math.round(total).toLocaleString('tr-TR');
+
+      if (areaObj && currentChartData && currentChartData.values.length === 24) {
+        areaObj.data.datasets[0].data = currentChartData.values;
+        areaObj.update('none');
+      }
+    }, 1500);
+}
+
+function drawCityDonut(city) {
+    if(donutObj) donutObj.destroy();
+    
+    const groups = {};
+    let cityTotal = 0;
+    city.plants.forEach(p => {
+      let grp = typeCfg[p.k]?.l || "Diğer";
+      groups[grp] = (groups[grp] || 0) + p.v;
+      cityTotal += p.v;
+    });
+
+    const ctx = document.getElementById('donutChart').getContext('2d');
+    const rawLabels = Object.keys(groups);
+    const data = Object.values(groups);
+
+    const labelsWithPercent = rawLabels.map(lbl => {
+      const val = groups[lbl];
+      const pct = cityTotal > 0 ? ((val / cityTotal) * 100).toFixed(1) : "0.0";
+      return `${lbl} (%${pct})`;
+    });
+
+    donutObj = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labelsWithPercent.length ? labelsWithPercent : ["Veri Yok"],
+            datasets: [{ 
+                data: data.length ? data : [1], 
+                backgroundColor: data.length ? ['#00d2ff', '#10b981', '#f9d423', '#f72585', '#8338ec', '#ff823a'] : ['#334155'],
+                borderWidth: 2,
+                borderColor: '#0a1120'
+            }]
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { 
+                legend: { 
+                    position: 'bottom', 
+                    labels: { color: '#daffde', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 12, padding: 8 } 
+                }, 
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (!data.length || cityTotal === 0) return " Aktif Santral Yok";
+                            const val = cleanVal(context.raw);
+                            const pct = ((val / cityTotal) * 100).toFixed(1);
+                            return ` ${context.label}: ${val.toFixed(2)} MWh (%${pct})`;
+                        }
+                    }
+                }
+            } 
+        }
+    });
+}
+
+function drawTrendChart(plant) {
+    // EPİAŞ'ın gerçek 24 saatlik verisini kullan. Simülasyon/fake profil yok.
+    const hours = Array.from({length: 24}, (_, i) => `${String(i).padStart(2,'0')}:00`);
+    let values = Array.isArray(plant.hourly) ? plant.hourly.slice(0, 24).map(cleanVal) : [];
+    while (values.length < 24) values.push(0);
+
+    // Günlük toplamı da saatlik veriden doğrula.
+    const hourlyTotal = values.reduce((sum, v) => sum + v, 0);
+    if (hourlyTotal > 0 || plant.v === 0) {
+        plant.v = hourlyTotal;
+    }
+
+    currentChartData = {
+        hours: hours,
+        values: values,
+        color: typeCfg[plant.k]?.color || '#00d2ff'
+    };
+
+    activeSimState.currentType = 'line';
+    activeSimState.filled = true;
+    activeSimState.axis = 'x';
+    buildScadaChart('line', true, 'x');
+}
+
+function buildScadaChart(chartType, isFilled, indexAxisOrientation) {
+    if(areaObj) areaObj.destroy();
+    const ctx = document.getElementById('areaChart').getContext('2d');
+    
+    let backgroundGradient = 'transparent';
+    if(isFilled) {
+        backgroundGradient = ctx.createLinearGradient(0, 0, 0, 300);
+        backgroundGradient.addColorStop(0, currentChartData.color + '66');
+        backgroundGradient.addColorStop(1, currentChartData.color + '00');
+    } else if(chartType === 'bar') {
+        backgroundGradient = ctx.createLinearGradient(0, 0, 0, 300);
+        backgroundGradient.addColorStop(0, currentChartData.color + 'dd');
+        backgroundGradient.addColorStop(1, currentChartData.color + '33');
+    }
+
+    areaObj = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels: currentChartData.hours,
+            datasets: [{ 
+                data: currentChartData.values, 
+                borderColor: currentChartData.color, 
+                backgroundColor: backgroundGradient, 
+                fill: isFilled, 
+                tension: 0.38, 
+                pointRadius: chartType === 'bar' ? 0 : 2, 
+                borderWidth: 2
+            }]
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            indexAxis: indexAxisOrientation, 
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: { grid: { color: 'rgba(0, 210, 255, 0.05)' }, ticks: { color: '#888', font: {size: 10, family: 'JetBrains Mono'} } },
+                x: { grid: { display: false }, ticks: { color: '#888', font: {size: 10, family: 'JetBrains Mono'} } }
+            },
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: {
+                    backgroundColor: '#0a1120',
+                    titleColor: varColor('--neon-blue'),
+                    bodyColor: '#fff',
+                    borderColor: varColor('--neon-blue'),
+                    borderWidth: 1,
+                    font: { family: 'JetBrains Mono' },
+                    callbacks: {
+                        label: function(context) { return ` Üretim: ${cleanVal(context.raw).toFixed(2)} MWh`; }
+                    }
+                },
+                zoom: {
+                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: indexAxisOrientation === 'y' ? 'y' : 'x' },
+                    pan: { enabled: true, mode: indexAxisOrientation === 'y' ? 'y' : 'x' }
+                }
+            }
+        }
+    });
+}
+
+function updateScadaChart(type, filled, axis = 'x') {
+    activeSimState.currentType = type;
+    activeSimState.filled = filled;
+    activeSimState.axis = axis;
+    
+    const event = window.event;
+    if(event) {
+        document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+    buildScadaChart(type, filled, axis);
+}
+
+function resetZoomGraph() {
+    if(areaObj) areaObj.resetZoom();
+}
+
+function varColor(varName) { return getComputedStyle(document.documentElement).getPropertyValue(varName).trim(); }
+function closeSelection() { document.getElementById("selectionOverlay").style.display = "none"; }
+function closeSim() { 
+    if (activeSimTimer) clearInterval(activeSimTimer);
+    document.getElementById("simOverlay").style.display = "none"; 
+    document.getElementById("selectionOverlay").style.display = "flex";
+}
+
+// CANLI TELEMETRİ GÖRSELİ: EPİAŞ üretim/toplam verilerini ezmez.
+setInterval(() => {
+  const freq = (50.00 + (Math.random() * 0.06 - 0.03)).toFixed(2);
+  const el = document.getElementById("hudFreq");
+  if (el) el.innerText = `${freq} Hz`;
+}, 2000);
+</script>
+
+<!-- EPİAŞ BAĞLANTI DURUMU -->
+<div id="epiasStatus" style="position:fixed;right:18px;top:86px;z-index:1000000;background:#06111d;border:1px solid #334155;color:#94a3b8;padding:7px 10px;border-radius:4px;font:10px 'JetBrains Mono',monospace;box-shadow:0 0 18px rgba(0,210,255,.12);">
+  <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f9d423;margin-right:6px;"></span>
+  <span id="epiasStatusText">EPİAŞ: BAĞLANTI BEKLENİYOR</span>
+</div>
+
+<div id="epiasLoginOverlay" style="position:fixed;inset:0;z-index:1000001;background:rgba(1,4,9,.96);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(10px);">
+  <div style="width:min(520px,92vw);background:#07111f;border:1px solid #00d2ff;border-radius:10px;padding:26px;box-shadow:0 0 60px rgba(0,210,255,.18);font-family:'JetBrains Mono',monospace;color:#fff;">
+    <div style="font-family:Orbitron,sans-serif;color:#00d2ff;font-size:22px;font-weight:700;letter-spacing:3px;margin-bottom:6px;">TR-GRID</div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:20px;">EPİAŞ GERÇEK ÜRETİM VERİSİ BAĞLANTISI</div>
+    <div style="display:grid;gap:10px;">
+      <label style="font-size:10px;color:#94a3b8;">EPİAŞ KULLANICI ADI</label>
+      <input id="epiasUser" type="text" autocomplete="username" placeholder="Kullanıcı adınız" style="box-sizing:border-box;width:100%;padding:10px;background:#020817;border:1px solid #334155;border-radius:5px;color:#fff;font:12px 'JetBrains Mono';outline:none;">
+      <label style="font-size:10px;color:#94a3b8;">EPİAŞ ŞİFRE</label>
+      <input id="epiasPass" type="password" autocomplete="current-password" placeholder="Şifreniz" style="box-sizing:border-box;width:100%;padding:10px;background:#020817;border:1px solid #334155;border-radius:5px;color:#fff;font:12px 'JetBrains Mono';outline:none;">
+      <input id="epiasDate" type="hidden">
+      <button id="epiasConnectBtn" style="margin-top:8px;padding:12px;background:#00d2ff;color:#001018;border:0;border-radius:5px;font:700 11px 'JetBrains Mono';cursor:pointer;">EPİAŞ'A BAĞLAN VE VERİLERİ ÇEK</button>
+      <div id="epiasMsg" style="white-space:pre-line;min-height:30px;font-size:10px;color:#f9d423;line-height:1.5;"></div>
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #1e293b;color:#64748b;font-size:9px;line-height:1.5;">
+      EPİAŞ'ın santral gerçek üretim servisi tamamlanmış önceki gün verisini sağlar. Veriler yerel TR-GRID sunucusu üzerinden çekilir.
+    </div>
+  </div>
+</div>
+
+
+<script>
+/* TR-GRID TEMIZ EPİAŞ KÖPRÜSÜ */
+(() => {
+  const overlay = document.getElementById('epiasLoginOverlay');
+  const btn = document.getElementById('epiasConnectBtn');
+  const msg = document.getElementById('epiasMsg');
+  const user = document.getElementById('epiasUser');
+  const pass = document.getElementById('epiasPass');
+  const date = document.getElementById('epiasDate');
+  const mapDate = document.getElementById('mapDateInput');
+  const mapDateStatus = document.getElementById('mapDateStatus');
+
+  const pad = n => String(n).padStart(2,'0');
+
+  function setMapDateStatus(message, state = 'loading', autoHide = false) {
+    if (!mapDateStatus) return;
+    mapDateStatus.innerHTML = message;
+    mapDateStatus.className = `show ${state}`;
+    if (mapDateStatus._timer) clearTimeout(mapDateStatus._timer);
+    if (autoHide) {
+      mapDateStatus._timer = setTimeout(() => {
+        mapDateStatus.className = '';
+      }, 6500);
+    }
+  }
+
+  function formatTRDate(dateStr) {
+    if (!dateStr) return dateStr;
+    const parts = dateStr.split('-');
+    return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : dateStr;
+  }
+  // TR-GRID her açılışta Türkiye yerel saatine göre bugünden bir önceki günü seçer.
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const defaultDate = `${yesterday.getFullYear()}-${pad(yesterday.getMonth()+1)}-${pad(yesterday.getDate())}`;
+  date.value = defaultDate;
+  mapDate.value = defaultDate;
+  let epiasSession = null;
+
+  const norm = s => String(s || '')
+    .toLocaleUpperCase('tr-TR')
+    .replace(/İ/g,'I').replace(/Ş/g,'S').replace(/Ğ/g,'G')
+    .replace(/Ü/g,'U').replace(/Ö/g,'O').replace(/Ç/g,'C')
+    .replace(/[^A-Z0-9]+/g,'');
+
+  const num = v => {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+    if (v == null || v === '') return 0;
+    let s = String(v).trim();
+    if (s.includes(',') && s.includes('.')) s = s.replace(/\./g,'').replace(',','.');
+    else if (s.includes(',')) s = s.replace(',','.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const ensure24 = a => {
+    const out = Array.isArray(a) ? a.slice(0,24).map(num) : [];
+    while(out.length < 24) out.push(0);
+    return out;
+  };
+
+  function setMsg(t, ok=false) {
+    msg.textContent = t;
+    msg.style.color = ok ? '#10b981' : '#f9d423';
+  }
+
+  function groupOf(k) {
+    if (k === 'wind') return 'wind';
+    if (k === 'sun') return 'sun';
+    if (k === 'dammedHydro' || k === 'river') return 'hydro';
+    if (k === 'geothermal') return 'geothermal';
+    if (k === 'biomass') return 'biomass';
+    return 'thermal';
+  }
+
+  function similarity(a, b) {
+    a = norm(a); b = norm(b);
+    if (!a || !b) return 0;
+    if (a === b) return 1;
+    if (a.includes(b) || b.includes(a)) return 0.94;
+    const A = new Set(a.match(/[A-Z0-9]{3,}/g) || []);
+    const B = new Set(b.match(/[A-Z0-9]{3,}/g) || []);
+    if (!A.size || !B.size) return 0;
+    let common = 0;
+    A.forEach(x => { if (B.has(x)) common++; });
+    return common / Math.max(A.size, B.size);
+  }
+
+  function findEpiasPlant(map, name) {
+    const key = norm(name);
+    if (!key) return null;
+    if (map.has(key)) return map.get(key);
+
+    // Önce güçlü prefix/contains eşleşmesi.
+    for (const [k, v] of map) {
+      if (key.length >= 7 && k.length >= 7 && (k.startsWith(key) || key.startsWith(k))) return v;
+    }
+
+    // İsimler birebir aynı değilse token benzerliği. Yanlış eşleşmeleri önlemek için eşik yüksek tutuldu.
+    let best = null, bestScore = 0;
+    for (const [k, v] of map) {
+      const score = similarity(key, k);
+      if (score > bestScore) { bestScore = score; best = v; }
+    }
+    return bestScore >= 0.72 ? best : null;
+  }
+
+  function applyData(payload) {
+    const plants = Array.isArray(payload?.plants) ? payload.plants : [];
+    if (!plants.length) throw new Error('EPİAŞ yanıtında üretim kaydı bulunamadı.');
+
+    const byName = new Map();
+    plants.forEach(x => {
+      const k = norm(x.name);
+      if (k) byName.set(k, x);
+    });
+
+    let matched = 0;
+    let unmatched = 0;
+    allCities.forEach(city => {
+      city.plants.forEach(p => {
+        const x = findEpiasPlant(byName, p.p);
+        if (x) {
+          p.v = num(x.dailyTotal);
+          p.hourly = ensure24(x.hourly);
+          p.epiasName = x.name || p.p;
+          if (x.type && x.type !== 'unknown') p.k = x.type;
+          matched++;
+        } else {
+          // Haritada bulunmayan eski/hardcoded tesisleri sıfırlıyoruz, böylece ekranda sahte veri kalmıyor.
+          p.v = 0;
+          p.hourly = Array(24).fill(0);
+          unmatched++;
+        }
+      });
+      city.totalMWh = city.plants.reduce((s,p) => s + num(p.v), 0);
+    });
+
+    // Kenardaki toplamlar haritadaki birkaç bin tesisin toplamı değil, EPİAŞ'ın döndürdüğü
+    // bütün üretim kayıtlarının toplamıdır.
+    const totals = {ALL:0,wind:0,sun:0,hydro:0,thermal:0,geothermal:0,biomass:0};
+    let renewable = 0;
+    plants.forEach(x => {
+      const v = num(x.dailyTotal);
+      const g = groupOf(x.type);
+      totals.ALL += v;
+      totals[g] += v;
+      if (['wind','sun','dammedHydro','river','geothermal','biomass'].includes(x.type)) renewable += v;
+    });
+
+    const fmt = n => (n >= 1000 ? (n/1000).toFixed(1)+'k' : n.toFixed(0)) + ' MWh';
+    Object.entries(totals).forEach(([k,v]) => {
+      const el = document.getElementById('tot_'+k);
+      if (el) el.textContent = fmt(v);
+    });
+
+    const pct = totals.ALL ? (renewable/totals.ALL*100).toFixed(1) : '0.0';
+    const renEl = document.getElementById('hudRenewablePct');
+    if (renEl) renEl.textContent = `% ${pct}`;
+
+    if (payload.nationalLoad?.value != null) {
+      const load = num(payload.nationalLoad.value);
+      document.getElementById('hudNationalLoad').textContent =
+        `${load.toLocaleString('tr-TR',{maximumFractionDigits:0})} MW`;
+    }
+
+    baseResourceTotals = {...totals};
+    renderMapMarkers();
+
+    const badge = document.getElementById('epiasStatusText');
+    badge.textContent = `BAĞLI • ${payload.date} • ${plants.length} kayıt • ${matched} eşleşme`;
+
+    return { count: plants.length, matched, unmatched, totals };
+  }
+
+  async function fetchForDate(targetDate, keepOverlay = false) {
+    if (!epiasSession || !targetDate) return;
+
+    btn.disabled = true;
+    btn.textContent = 'EPİAŞ VERİLERİ ÇEKİLİYOR...';
+    setMapDateStatus(
+      `⟳ ${formatTRDate(targetDate)} tarihine geçiliyor...<br>EPİAŞ verileri güncelleniyor, lütfen bekleyiniz.`,
+      'loading'
+    );
+    setMsg(`${targetDate} tarihi için EPİAŞ verileri çekiliyor...\nSantral üretimleri toplanıyor. Bu işlem birkaç dakika sürebilir.`);
+
+    const waitMessages = [
+      'EPİAŞ sunucusuna bağlanılıyor...',
+      'Santral listesi alınıyor...',
+      'Üretim verileri toplanıyor...',
+      'Santrallerin saatlik üretimleri işleniyor...',
+      'Türkiye toplam üretimi hesaplanıyor...',
+      'Harita verileri hazırlanıyor...',
+      'Son kontroller yapılıyor...'
+    ];
+    let waitIndex = 0;
+    setMsg(`${waitMessages[waitIndex]}\n\nİşlem devam ediyor. Lütfen bekleyiniz.`);
+    const waitTimer = setInterval(() => {
+      waitIndex = (waitIndex + 1) % waitMessages.length;
+      setMsg(`${waitMessages[waitIndex]}\n\nİşlem devam ediyor. Lütfen bekleyiniz.`);
+    }, 3000);
+
+    try {
+      const r = await fetch('/api/epias', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          username:epiasSession.username,
+          password:epiasSession.password,
+          date:targetDate
+        })
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+
+      const result = applyData(data);
+      setMsg(
+        `${targetDate} VERİLERİ AKTARILDI.\n${result.count} EPİAŞ üretim kaydı alındı.\n${result.matched} harita üzerindeki santral eşleştirildi.`,
+        true
+      );
+      setMapDateStatus(
+        `✓ ${formatTRDate(targetDate)} tarihine geçildi.<br>Harita ve üretim verileri güncellendi.`,
+        'success',
+        true
+      );
+
+      if (!keepOverlay) {
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          if (typeof map !== 'undefined' && map.invalidateSize) map.invalidateSize();
+        }, 900);
+      }
+      return true;
+    } catch (e) {
+      console.error(e);
+      setMapDateStatus(
+        `⚠ ${formatTRDate(targetDate)} tarihine geçiş başarısız.<br>EPİAŞ verileri alınamadı.`,
+        'error',
+        false
+      );
+      setMsg('EPİAŞ VERİSİ ALINAMADI:\n' + e.message);
+      return false;
+    } finally {
+      clearInterval(waitTimer);
+      btn.disabled = false;
+      btn.textContent = "EPİAŞ'A BAĞLAN VE VERİLERİ ÇEK";
+    }
+  }
+
+  mapDate.addEventListener('change', async () => {
+    const selectedDate = mapDate.value;
+    if (!selectedDate) return;
+
+    // EPİAŞ bağlantısı kurulmadıysa tarih sadece seçilir.
+    // Bağlantı kurulduysa tarih değişikliği gerçek veri sorgusunu hemen yeniler.
+    date.value = selectedDate;
+    if (epiasSession) {
+      await fetchForDate(selectedDate, true);
+    } else {
+      setMapDateStatus(
+        `ℹ ${formatTRDate(selectedDate)} tarihi seçildi.<br>EPİAŞ bağlantısı kurulduğunda bu tarihin verileri yüklenecek.`,
+        'loading',
+        true
+      );
+    }
+  });
+
+  async function connectEpias() {
+    if (!user.value.trim() || !pass.value || !date.value) {
+      setMsg('Kullanıcı adı, şifre ve tarih gerekli.');
+      return;
+    }
+
+    epiasSession = {
+      username: user.value.trim(),
+      password: pass.value
+    };
+
+    const ok = await fetchForDate(date.value, false);
+    if (ok) pass.value = '';
+  }
+
+  btn.addEventListener('click', connectEpias);
+
+  [user, pass].forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !btn.disabled) {
+        e.preventDefault();
+        connectEpias();
+      }
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
