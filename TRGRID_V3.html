@@ -1401,12 +1401,14 @@ setInterval(() => {
     const parts = dateStr.split('-');
     return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : dateStr;
   }
-  // TR-GRID her açılışta Türkiye yerel saatine göre bugünden bir önceki günü seçer.
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const defaultDate = `${yesterday.getFullYear()}-${pad(yesterday.getMonth()+1)}-${pad(yesterday.getDate())}`;
+  // SantralMatik açılışta Türkiye yerel saatine göre BUGÜNÜ seçer.
+  // EPİAŞ bugünün santral verisini döndürmezse sistem dünü sessizce göstermesin;
+  // istek başarısız olarak kullanıcıya bildirilsin. Böylece ekranda tarih ile veri tarihi karışmaz.
+  const turkeyNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }));
+  const defaultDate = `${turkeyNow.getFullYear()}-${pad(turkeyNow.getMonth()+1)}-${pad(turkeyNow.getDate())}`;
   date.value = defaultDate;
   mapDate.value = defaultDate;
+  mapDate.max = defaultDate;
   let epiasSession = null;
 
   const norm = s => String(s || '')
