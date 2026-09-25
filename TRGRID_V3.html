@@ -284,6 +284,19 @@
 #sourceFilters { top:14px !important; right:18px !important; }
 
 
+/* SANTRALMATİK SANTRAL DETAY MARKA ALANI */
+.sim-brand-wrap { display:flex; align-items:center; gap:12px; min-width:0; }
+.sim-brand-logo { width:46px; height:46px; object-fit:contain; border-radius:10px; flex:0 0 auto; filter:drop-shadow(0 0 8px rgba(0,210,255,.22)); }
+.sim-brand-text { min-width:0; }
+
+/* AKIŞ ÇİZGİSİ: CSS animasyonu ile her ortamda güvenilir hareket */
+.connector { height:24px; width:3px; background:#152235; margin:0 auto; position:relative; overflow:hidden; border-radius:3px; }
+.pulse { position:absolute; left:0; top:-36px; width:100%; height:36px; background:linear-gradient(180deg, transparent 0%, var(--neon-blue) 45%, #fff 50%, var(--neon-blue) 55%, transparent 100%); box-shadow:0 0 8px rgba(0,210,255,.8); animation:scada-pulse 1.15s linear infinite; will-change:transform; }
+.connector:nth-of-type(2) .pulse { animation-delay:.22s; }
+.connector:nth-of-type(4) .pulse { animation-delay:.44s; }
+.connector:nth-of-type(6) .pulse { animation-delay:.66s; }
+@keyframes scada-pulse { from { transform:translateY(0); } to { transform:translateY(60px); } }
+
 /* SANTRALMATİK MOBİL UYUMLULUK */
 @media (max-width: 768px) {
   html, body { overflow:hidden; }
@@ -337,7 +350,7 @@
     box-sizing:border-box; flex-direction:column; gap:10px; padding:12px; margin:auto 0;
   }
   .selection-left, .selection-right { width:100%; min-width:0; box-sizing:border-box; }
-  .selection-right { min-height:220px; padding:10px; }
+  .selection-right { min-height:0; padding:10px; overflow:visible; }
   .selection-box h2 { font-size:20px !important; letter-spacing:2px !important; overflow-wrap:anywhere; }
   .city-summary-card { padding:9px; gap:8px; }
   #selCityTotal { font-size:17px !important; }
@@ -347,6 +360,10 @@
 
   #simOverlay { padding:10px; overflow-y:auto; overflow-x:hidden; }
   #topBar { gap:8px; align-items:flex-start; }
+  .sim-brand-wrap { min-width:0; gap:8px; }
+  .sim-brand-logo { width:34px; height:34px; border-radius:8px; }
+  .sim-brand-text { min-width:0; }
+
   #cityTitle { font-size:21px; letter-spacing:1.5px; overflow-wrap:anywhere; }
   #plantInfo { font-size:9px; line-height:1.35; overflow-wrap:anywhere; }
   #backBtn { padding:6px 8px; font-size:8px; flex:0 0 auto; }
@@ -376,6 +393,65 @@
   #epiasElectricalInfo { font-size:8px !important; }
 }
 
+
+/* MOBİL SEÇİM / GRAFİK DÜZENİ */
+.selection-donut-wrap {
+  width: 100%;
+  height: 280px;
+  min-height: 280px;
+  position: relative;
+  flex: 0 0 280px;
+}
+.selection-donut-wrap canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+}
+#terminal { flex: 0 0 auto; }
+
+@media (max-width: 768px) {
+  .selection-right {
+    min-height: 0 !important;
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+  }
+  .selection-donut-wrap {
+    height: 255px;
+    min-height: 255px;
+    flex-basis: 255px;
+  }
+  #simOverlay {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 18px !important;
+  }
+  #topBar { flex-shrink: 0; }
+  .main-grid {
+    flex-shrink: 0;
+    padding-bottom: 2px;
+  }
+  .charts-section {
+    height: 330px !important;
+    min-height: 330px !important;
+    flex: 0 0 330px !important;
+    overflow: hidden;
+  }
+  .charts-section > div:last-child {
+    min-height: 0 !important;
+    height: calc(100% - 2px) !important;
+  }
+  #terminal {
+    position: relative !important;
+    z-index: 2;
+    margin-top: 12px !important;
+    margin-bottom: 6px !important;
+    flex-shrink: 0 !important;
+    clear: both;
+  }
+}
+
 @media (max-width: 430px) {
   #sourceFilters { grid-template-columns:repeat(2, minmax(0,1fr)); bottom:7px; }
   #mapLegend { bottom:170px; max-height:125px; }
@@ -387,6 +463,424 @@
   .selection-right { min-height:190px; }
   .charts-section { height:300px; }
 }
+
+
+@media (max-width: 430px) {
+  .selection-right { padding: 8px !important; }
+  .selection-donut-wrap {
+    height: 235px;
+    min-height: 235px;
+    flex-basis: 235px;
+  }
+  .selection-right > div:first-child {
+    font-size: 9px !important;
+    margin-bottom: 7px !important;
+  }
+  #simOverlay { padding: 8px 8px 16px !important; }
+  .main-grid { gap: 12px !important; }
+  .charts-section {
+    height: 305px !important;
+    min-height: 305px !important;
+    flex-basis: 305px !important;
+    padding-top: 44px !important;
+  }
+  .chart-title { max-width: 52% !important; }
+  .chart-controls { max-width: 45% !important; }
+  #terminal { height: 125px !important; margin-top: 12px !important; }
+}
+
+
+/* SANTRALMATİK SON CİLA */
+#epiasMsg {
+  min-height: 52px !important;
+  height: 52px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  white-space: pre-line !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  line-height: 1.45 !important;
+}
+#epiasStatus > span:first-child {
+  background:#10b981 !important;
+  box-shadow:0 0 8px rgba(16,185,129,.7) !important;
+}
+.selection-right { justify-content: center; }
+.selection-donut-wrap {
+  width:100%; height:300px; min-height:300px; flex:0 0 300px;
+  display:flex; align-items:center; justify-content:center;
+  box-sizing:border-box; margin:0 auto;
+}
+.selection-chart-brand {
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  margin:0 auto 8px; opacity:.92;
+}
+.selection-chart-brand img {
+  width:32px; height:32px; object-fit:contain; border-radius:8px;
+  filter:drop-shadow(0 0 7px rgba(0,210,255,.22));
+}
+.selection-chart-brand-text {
+  font-family:'Orbitron',sans-serif; font-size:10px; letter-spacing:1.8px;
+  color:#e2e8f0; font-weight:700;
+}
+.selection-chart-brand-text small {
+  display:block; margin-top:2px; font-family:'JetBrains Mono',monospace;
+  font-size:7px; letter-spacing:1px; color:#64748b; font-weight:500;
+}
+.selection-donut-wrap canvas {
+  display:block !important; width:100% !important; height:100% !important;
+  max-width:100% !important; max-height:100% !important;
+}
+@media (min-width:769px) {
+  .selection-right .selection-donut-wrap { margin-top:18px; }
+}
+@media (max-width:768px) {
+  #epiasMsg { height:52px !important; min-height:52px !important; font-size:9px !important; }
+  .selection-right {
+    padding:12px 10px 14px !important;
+    overflow:visible !important;
+    min-height:360px !important;
+    justify-content:center !important;
+  }
+  .selection-donut-wrap {
+    height:250px !important; min-height:250px !important; flex-basis:250px !important;
+    margin:4px auto 0 !important;
+  }
+  .selection-chart-brand { margin-bottom:7px !important; }
+}
+@media (max-width:430px) {
+  #epiasMsg { height:56px !important; min-height:56px !important; }
+  .selection-right {
+    padding:10px 8px 12px !important;
+    min-height:350px !important;
+  }
+  .selection-donut-wrap {
+    height:235px !important; min-height:235px !important; flex-basis:235px !important;
+  }
+  .selection-chart-brand img { width:28px !important; height:28px !important; }
+  .selection-chart-brand-text { font-size:9px !important; }
+  .selection-chart-brand-text small { font-size:6.5px !important; }
+}
+
+
+/* KAYNAK DAĞILIMI - SON RESPONSIVE CILA v2 */
+.selection-right {
+  box-sizing: border-box !important;
+  height: auto !important;
+  min-height: 0 !important;
+  flex: 0 0 auto !important;
+  overflow: hidden !important;
+  justify-content: flex-start !important;
+}
+.selection-right > div:first-child {
+  flex: 0 0 auto !important;
+  box-sizing: border-box !important;
+  width: 100%;
+}
+.selection-donut-wrap {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: 430px !important;
+  min-height: 430px !important;
+  flex: 0 0 430px !important;
+  margin: 12px auto 0 !important;
+  overflow: hidden !important;
+}
+.selection-donut-wrap canvas {
+  box-sizing: border-box !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
+/* Masaüstü: eski grafik boyutu korunur, merkezlenir; lejand aşağıda kalır */
+@media (min-width:769px) {
+  .selection-box {
+    align-items: stretch;
+  }
+  .selection-right {
+    min-height: 365px !important;
+  }
+  .selection-donut-wrap {
+    height: 330px !important;
+    min-height: 330px !important;
+    flex-basis: 330px !important;
+    margin: 10px auto 0 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+  }
+  .selection-donut-wrap canvas {
+    width:100% !important;
+    height:100% !important;
+  }
+}
+
+/* Telefon: parent yüksekliği çocukların gerçek toplam yüksekliğini sarsın */
+@media (max-width:768px) {
+  #selectionOverlay {
+    align-items: stretch !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  .selection-box {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    flex: 0 0 auto !important;
+    align-self: flex-start !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+  .selection-right {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 12px 10px 18px !important;
+    overflow: hidden !important;
+  }
+  .selection-donut-wrap {
+    height: 455px !important;
+    min-height: 455px !important;
+    flex-basis: 455px !important;
+    margin: 8px auto 0 !important;
+    overflow: hidden !important;
+  }
+  #epiasStatus {
+    top: 86px !important;
+    right: 8px !important;
+    bottom: auto !important;
+    left: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    box-sizing: border-box !important;
+    z-index: 1000000 !important;
+  }
+}
+
+@media (max-width:430px) {
+  .selection-box {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .selection-right {
+    padding: 10px 8px 18px !important;
+  }
+  .selection-donut-wrap {
+    height: 455px !important;
+    min-height: 455px !important;
+    flex-basis: 455px !important;
+    margin: 7px auto 0 !important;
+  }
+  #epiasStatus {
+    top: 86px !important;
+    right: 8px !important;
+    bottom: auto !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+}
+/* EPİAŞ durum kartı: viewport'a sabit kalır; aşağı kaydırmada hareket etmez */
+#epiasStatus {
+  position: fixed !important;
+  top: 86px !important;
+  right: 18px !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 1000000 !important;
+}
+@media (max-width:768px) {
+  #epiasStatus {
+    top: 86px !important;
+    right: 8px !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+}
+
+/* CİLA 8 - MASAÜSTÜ GRAFİK ALANI: SADE VE TAŞMASIZ */
+@media (min-width:769px) {
+  .selection-box {
+    overflow: hidden !important;
+  }
+  .selection-right {
+    position: relative !important;
+    min-height: 350px !important;
+    height: 350px !important;
+    box-sizing: border-box !important;
+    justify-content: flex-start !important;
+    overflow: hidden !important;
+  }
+  .selection-donut-wrap {
+    position: relative !important;
+    width: 100% !important;
+    height: 325px !important;
+    min-height: 325px !important;
+    flex: 0 0 325px !important;
+    margin: 6px auto 0 !important;
+    display: block !important;
+    overflow: hidden !important;
+  }
+  .selection-donut-wrap canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 300px !important;
+    min-height: 300px !important;
+    max-height: 300px !important;
+    margin: 0 auto !important;
+  }
+  .selection-space-brand {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 38px !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    opacity: .68 !important;
+  }
+  .selection-space-brand img {
+    width: 30px !important;
+    height: 30px !important;
+    object-fit: contain !important;
+    border-radius: 7px !important;
+  }
+  .selection-space-brand-name {
+    font-size: 9px !important;
+    letter-spacing: 1.5px !important;
+  }
+  .selection-space-brand-sub {
+    font-size: 6px !important;
+    letter-spacing: .8px !important;
+  }
+}
+@media (max-width:768px) {
+  .selection-space-brand { display:none !important; }
+}
+
+
+/* CİLA 9 - KAYNAK DAĞILIMI MASAÜSTÜ SON DÜZEN */
+@media (min-width: 769px) {
+  .selection-box {
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .selection-right {
+    box-sizing: border-box !important;
+    min-height: 0 !important;
+    height: 365px !important;
+    padding: 15px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+  }
+
+  .selection-right > div:first-child {
+    flex: 0 0 auto !important;
+    margin-bottom: 8px !important;
+  }
+
+  .selection-donut-wrap {
+    position: relative !important;
+    width: 100% !important;
+    height: 325px !important;
+    min-height: 325px !important;
+    flex: 0 0 325px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .selection-donut-wrap canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 325px !important;
+    min-height: 325px !important;
+    max-height: 325px !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* CİLA 11 - İL KAYNAK DAĞILIMI (CİLA 10'un yerine geçer)
+   Başlık üstte · donut + lejand tek blok halinde ortada · hiçbir ilde taşma / kırpılma yok */
+
+/* Kart: genişlik lejand içeriğinden bağımsız (çok dilimli illerde kartın genişleyip taşmasını önler) */
+#selectionOverlay .selection-right {
+  display: flex !important; flex-direction: column !important;
+  align-items: center !important; justify-content: flex-start !important;
+  box-sizing: border-box !important;
+  height: auto !important; min-height: 0 !important;
+  padding: 14px 14px 16px !important;
+  overflow-x: hidden !important; overflow-y: auto !important;   /* son çare: kırpmak yerine kaydır */
+  scrollbar-width: thin; scrollbar-color: rgba(0,210,255,.35) transparent;
+}
+#selectionOverlay .selection-right > div:first-child {
+  width: 100%; flex: 0 0 auto !important; margin-bottom: 10px !important;
+}
+
+/* Donut: kare, ortalı; alan daralırsa (kısa ekran / uzun lejand) kendiliğinden küçülür */
+#selectionOverlay .selection-right .selection-donut-wrap {
+  position: relative !important; display: block !important; box-sizing: border-box !important;
+  flex: 0 1 auto !important; align-self: center !important;
+  width: min(100%, 300px, 44vh) !important;
+  height: auto !important; aspect-ratio: 1 / 1 !important;
+  min-width: 0 !important; min-height: 120px !important; max-height: none !important;
+  margin: auto 0 0 !important;            /* üst boşluk: blok (donut+lejand) dikeyde ortalanır */
+  padding: 0 !important; overflow: visible !important;
+}
+#selectionOverlay .selection-right .selection-donut-wrap canvas {
+  position: absolute !important; inset: 0 !important;
+  width: 100% !important; height: 100% !important;
+  min-height: 0 !important; max-height: none !important; margin: 0 !important;
+}
+
+/* Lejand: donutun hemen altında (6px), alt boşluk kartın en altına gider */
+.donut-legend {
+  flex: 0 0 auto; align-self: stretch; box-sizing: border-box;
+  width: 100%; min-width: 0; margin: 6px 0 auto;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+  gap: 4px 12px; text-align: center;
+  font: 10px/1.3 'JetBrains Mono', monospace; color: #daffde;
+}
+.donut-legend .dl-item { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; cursor: pointer; user-select: none; }
+.donut-legend .dl-item > span:last-child { min-width: 0; overflow-wrap: anywhere; text-align: left; }
+.donut-legend .dl-dot { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+.donut-legend .dl-item.off { opacity: .35; text-decoration: line-through; }
+
+/* Masaüstü: sabit kart genişliği (310px) + kutu ekrandan taşmaz */
+@media (min-width: 769px) {
+  #selectionOverlay .selection-box { max-width: 100% !important; }
+  #selectionOverlay .selection-right {
+    flex: 0 0 310px !important; width: 310px !important;
+    min-width: 310px !important; max-width: 310px !important;
+  }
+}
+/* Kısa ekran (yatay telefon / küçük pencere): daha sıkı boşluklar */
+@media (min-width: 769px) and (max-height: 560px) {
+  #selectionOverlay .selection-right { padding: 10px 12px 12px !important; }
+  #selectionOverlay .selection-right > div:first-child { margin-bottom: 6px !important; }
+  .donut-legend { font-size: 9px; gap: 2px 10px; margin-top: 6px; }
+}
+/* Mobil: sayfa zaten kaydığı için yüksekliğe göre küçültme yok */
+@media (max-width: 768px) {
+  #selectionOverlay .selection-right .selection-donut-wrap { width: min(100%, 300px) !important; }
+}
+@media (max-width: 430px) { .donut-legend { font-size: 9px; gap: 3px 10px; } }
 
 </style>
 </head>
@@ -400,11 +894,7 @@
   </div>
   <div class="hud-block">
     <div class="hud-title">ULUSAL ANLIK YÜK</div>
-    <div class="hud-val" id="hudNationalLoad">-- MW</div>
-  </div>
-  <div class="hud-block">
-    <div class="hud-title">ULUSAL ANLIK ÜRETİM</div>
-    <div class="hud-val" id="hudNationalGeneration" style="color:var(--neon-green);">-- MW</div>
+    <div class="hud-val" id="hudNationalLoad">34,180 MW</div>
   </div>
   <div class="hud-block">
     <div class="hud-title">YENİLENEBİLİR PAYI</div>
@@ -514,16 +1004,22 @@
     </div>
     <div class="selection-right">
         <div style="font-size:11px; color:var(--neon-pink); font-family:'JetBrains Mono'; margin-bottom: 12px; text-align: center; border-bottom: 1px solid rgba(247,37,133,0.2); padding-bottom: 5px;">İL GENELİ KAYNAK DAĞILIMI (%)</div>
-        <div style="flex-grow:1; position:relative;"><canvas id="donutChart"></canvas></div>
+        <div class="selection-donut-wrap">
+          <canvas id="donutChart"></canvas>
+        </div>
+        <div id="donutLegend" class="donut-legend"></div>
     </div>
   </div>
 </div>
 
 <div id="simOverlay">
   <div id="topBar">
-    <div>
-      <div id="cityTitle">--</div>
-      <div id="plantInfo">--</div>
+    <div class="sim-brand-wrap">
+      <img id="simBrandLogo" class="sim-brand-logo" alt="SantralMatik">
+      <div class="sim-brand-text">
+        <div id="cityTitle">--</div>
+        <div id="plantInfo">--</div>
+      </div>
     </div>
     <button id="backBtn" onclick="closeSim()">← LİSTEYE DÖN</button>
   </div>
@@ -1138,7 +1634,6 @@ function openSim(cityIdx, plantIdx) {
 
     log.innerHTML = `&gt; [${zaman}] [BAĞLANTI_OK]: ${city.n} // ${plant.p} SCADA telemetri köprüsü kuruldu.<br>&gt; [EPİAŞ]: Şeffaflık Platformu veritabanından ${plant.v.toFixed(2)} MWh üretim verisi doğrulandı.${teknikDetay}`;
     
-    gsap.to(".pulse", { top: "100%", duration: 0.8, repeat: -1, ease: "none", stagger: 0.2 });
 
     if (activeSimTimer) clearInterval(activeSimTimer);
     activeSimTimer = setInterval(() => {
@@ -1158,6 +1653,12 @@ function openSim(cityIdx, plantIdx) {
       }
     }, 1500);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sourceLogo = document.querySelector('.selection-brand-logo');
+  const simLogo = document.getElementById('simBrandLogo');
+  if (sourceLogo && simLogo) simLogo.src = sourceLogo.src;
+});
 
 function drawCityDonut(city) {
     if(donutObj) donutObj.destroy();
@@ -1193,12 +1694,11 @@ function drawCityDonut(city) {
         },
         options: { 
             responsive: true, 
-            maintainAspectRatio: false, 
+            maintainAspectRatio: false,
+            layout: { padding: 4 },      // halka kenara değmez
+            radius: '97%',               // dış yarıçap: alanın %97'si 
             plugins: { 
-                legend: { 
-                    position: 'bottom', 
-                    labels: { color: '#daffde', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 12, padding: 8 } 
-                }, 
+                legend: { display: false }, 
                 tooltip: {
                     callbacks: {
                         label: function(context) {
@@ -1212,6 +1712,33 @@ function drawCityDonut(city) {
             } 
         }
     });
+    renderDonutLegend();
+}
+
+function renderDonutLegend() {
+    const box = document.getElementById('donutLegend');
+    if (!box || !donutObj) return;
+    box.innerHTML = '';
+    const labels = donutObj.data.labels || [];
+    const colors = donutObj.data.datasets[0].backgroundColor || [];
+    labels.forEach((lbl, i) => {
+        const item = document.createElement('div');
+        item.className = 'dl-item';
+        const dot = document.createElement('span');
+        dot.className = 'dl-dot';
+        dot.style.background = colors[i % colors.length];
+        const txt = document.createElement('span');
+        txt.textContent = lbl;
+        item.append(dot, txt);
+        item.onclick = () => {
+            donutObj.toggleDataVisibility(i);
+            donutObj.update();
+            item.classList.toggle('off', !donutObj.getDataVisibility(i));
+        };
+        box.appendChild(item);
+    });
+    // lejand yerleşimi değiştirdi: grafiği yeni alana göre yeniden ölç
+    requestAnimationFrame(() => { if (donutObj) donutObj.resize(); });
 }
 
 function drawTrendChart(plant) {
@@ -1333,7 +1860,7 @@ setInterval(() => {
 
 <!-- EPİAŞ BAĞLANTI DURUMU -->
 <div id="epiasStatus" style="position:fixed;right:18px;top:86px;z-index:1000000;background:#06111d;border:1px solid #334155;color:#94a3b8;padding:7px 10px;border-radius:4px;font:10px 'JetBrains Mono',monospace;box-shadow:0 0 18px rgba(0,210,255,.12);">
-  <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f9d423;margin-right:6px;"></span>
+  <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:6px;box-shadow:0 0 8px rgba(16,185,129,.7);"></span>
   <span id="epiasStatusText">EPİAŞ: BAĞLANTI BEKLENİYOR</span>
 </div>
 
@@ -1401,14 +1928,12 @@ setInterval(() => {
     const parts = dateStr.split('-');
     return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : dateStr;
   }
-  // SantralMatik açılışta Türkiye yerel saatine göre BUGÜNÜ seçer.
-  // EPİAŞ bugünün santral verisini döndürmezse sistem dünü sessizce göstermesin;
-  // istek başarısız olarak kullanıcıya bildirilsin. Böylece ekranda tarih ile veri tarihi karışmaz.
-  const turkeyNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }));
-  const defaultDate = `${turkeyNow.getFullYear()}-${pad(turkeyNow.getMonth()+1)}-${pad(turkeyNow.getDate())}`;
+  // TR-GRID her açılışta Türkiye yerel saatine göre bugünden bir önceki günü seçer.
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const defaultDate = `${yesterday.getFullYear()}-${pad(yesterday.getMonth()+1)}-${pad(yesterday.getDate())}`;
   date.value = defaultDate;
   mapDate.value = defaultDate;
-  mapDate.max = defaultDate;
   let epiasSession = null;
 
   const norm = s => String(s || '')
@@ -1585,16 +2110,6 @@ setInterval(() => {
         `${load.toLocaleString('tr-TR',{maximumFractionDigits:0})} MW`;
     }
 
-    // Bugünün gerçek zamanlı toplam üretimi EPİAŞ Dashboard servisinden gelir.
-    // Santral bazlı harita/grafikler ise seçilen günün saatlik verisini kullanmaya devam eder.
-    const realtimeGenEl = document.getElementById('hudNationalGeneration');
-    if (realtimeGenEl && payload.nationalGeneration?.value != null) {
-      const gen = num(payload.nationalGeneration.value);
-      realtimeGenEl.textContent = `${gen.toLocaleString('tr-TR',{maximumFractionDigits:0})} MW`;
-      realtimeGenEl.title = 'EPİAŞ gerçek zamanlı toplam üretim • ' +
-        (payload.nationalGeneration.time || payload.nationalGeneration.latestUpdateTime || '');
-    }
-
     baseResourceTotals = {...totals};
     renderMapMarkers();
 
@@ -1613,7 +2128,6 @@ setInterval(() => {
       `⟳ ${formatTRDate(targetDate)} tarihine geçiliyor...<br>EPİAŞ verileri güncelleniyor, lütfen bekleyiniz.`,
       'loading'
     );
-    setMsg(`${targetDate} tarihi için EPİAŞ verileri çekiliyor...\nSantral üretimleri toplanıyor. Bu işlem birkaç dakika sürebilir.`);
 
     const waitMessages = [
       'EPİAŞ sunucusuna bağlanılıyor...',
@@ -1624,46 +2138,40 @@ setInterval(() => {
       'Harita verileri hazırlanıyor...',
       'Son kontroller yapılıyor...'
     ];
-    // İlerleme yüzdesi tahminidir: sunucu gerçek indirme yüzdesini stream etmediği için
-    // veri gerçekten dönene kadar çubuk %90'ı geçmez. Böylece %97'de uzun süre takılı kalmaz.
-    const progressStages = [
-      { pct: 8,  label: 'EPİAŞ sunucusuna bağlantı kuruluyor...' },
-      { pct: 18, label: 'Santral listesi hazırlanıyor...' },
-      { pct: 32, label: 'Üretim verileri alınıyor...' },
-      { pct: 46, label: 'Saatlik üretimler işleniyor...' },
-      { pct: 58, label: 'Üretim kayıtları eşleştiriliyor...' },
-      { pct: 70, label: 'Türkiye toplam üretimi hesaplanıyor...' },
-      { pct: 80, label: 'Harita verileri hazırlanıyor...' },
-      { pct: 86, label: 'Son kontroller yapılıyor...' }
-    ];
+
+    const jobId = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : 'job-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+
     let waitIndex = 0;
-    let progressIndex = 0;
+    let progressPollTimer = null;
     setMsg(`${waitMessages[waitIndex]}\n\nİşlem devam ediyor. Lütfen bekleyiniz.`);
-    setProgress(progressStages[0].pct, progressStages[0].label);
-    let slowProgress = progressStages[0].pct;
-    const waitTimer = setInterval(() => {
-      waitIndex = (waitIndex + 1) % waitMessages.length;
-      progressIndex = Math.min(progressIndex + 1, progressStages.length - 1);
-      const stage = progressStages[progressIndex];
+    setProgress(0, 'EPİAŞ bağlantısı hazırlanıyor...');
 
-      // Aşamalar bittikten sonra çubuk yavaşça ilerler, fakat gerçek cevap gelmeden %90'ı aşmaz.
-      if (progressIndex === progressStages.length - 1) {
-        slowProgress = Math.min(90, Math.max(stage.pct, slowProgress + 1));
-        setProgress(slowProgress, slowProgress >= 90 ? 'EPİAŞ verileri tamamlanıyor, son yanıt bekleniyor...' : stage.label);
-      } else {
-        slowProgress = stage.pct;
-        setProgress(stage.pct, stage.label);
+    const pollProgress = async () => {
+      try {
+        const pr = await fetch('/api/epias-progress?jobId=' + encodeURIComponent(jobId), {
+          cache: 'no-store'
+        });
+        if (!pr.ok) return;
+        const status = await pr.json();
+        const pct = Number(status.percent || 0);
+        setProgress(pct, status.stage || 'Veriler işleniyor...');
+        // Ana durum metni sabit kalır; değişken grup numarası yalnızca ilerleme
+        // çubuğunun altındaki tek satırda gösterilir. Böylece ekran zıplamaz.
+        setMsg(`${status.stage}\n\nİşlem devam ediyor. Lütfen bekleyiniz.`);
+        if (status.detail && progressLabel) progressLabel.textContent = status.detail;
+      } catch (_) {
+        // Ana EPİAŞ isteği devam ettiği sürece kısa süreli progress sorgu hatalarını yok say.
       }
-      setMsg(`${waitMessages[waitIndex]}\n\nİşlem devam ediyor. Lütfen bekleyiniz.`);
-    }, 3000);
+    };
 
-    // Uzun süren isteklerde yüzde 90 civarında kontrollü bekleme.
-    const slowProgressTimer = setInterval(() => {
-      if (progressIndex >= progressStages.length - 1 && slowProgress < 90) {
-        slowProgress = Math.min(90, slowProgress + 1);
-        setProgress(slowProgress, slowProgress >= 90 ? 'EPİAŞ verileri tamamlanıyor, son yanıt bekleniyor...' : 'Veriler işleniyor...');
-      }
-    }, 5000);
+    progressPollTimer = setInterval(pollProgress, 700);
+    await pollProgress();
+
+    // Durum metni bağımsız bir sayaçla değiştirilmez. Sunucudan gelen aşama/grup bilgisi
+    // sabit yükseklikte gösterilir; böylece metin zıplamaz.
+    const waitMessageTimer = null;
 
     try {
       const r = await fetch('/api/epias', {
@@ -1672,7 +2180,8 @@ setInterval(() => {
         body:JSON.stringify({
           username:epiasSession.username,
           password:epiasSession.password,
-          date:targetDate
+          date:targetDate,
+          jobId
         })
       });
       const data = await r.json();
@@ -1709,8 +2218,8 @@ setInterval(() => {
       setMsg('EPİAŞ VERİSİ ALINAMADI:\n' + e.message);
       return false;
     } finally {
-      clearInterval(waitTimer);
-      clearInterval(slowProgressTimer);
+      clearInterval(waitMessageTimer);
+      if (progressPollTimer) clearInterval(progressPollTimer);
       btn.disabled = false;
       btn.textContent = "EPİAŞ'A BAĞLAN VE VERİLERİ ÇEK";
     }
