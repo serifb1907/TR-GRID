@@ -1,6 +1,6 @@
-# TR-GRID Web
+# SantralMatik Web
 
-TR-GRID'in Render üzerinde tek Web Service olarak çalışacak sürümü.
+SantralMatik'in Render üzerinde tek Web Service olarak çalışacak sürümü.
 
 ## Render ayarları
 
